@@ -49,9 +49,23 @@ function AccountViewComponent({
 
               {!session ? (
                 <div style={{ padding: '24px', background: 'var(--surface-soft)', borderRadius: '24px' }}>
-                  <div className="button-row two-up" style={{ marginBottom: '24px' }}>
-                    <button className={authView === 'sign-in' ? 'primary' : 'ghost'} onClick={() => setAuthView('sign-in')} type="button">Sign In</button>
-                    <button className={authView === 'sign-up' ? 'primary' : 'ghost'} onClick={() => setAuthView('sign-up')} type="button">Create Account</button>
+                  <div className="button-row" style={{ display: 'flex', gap: '8px', padding: '6px', background: 'var(--input-bg)', borderRadius: '20px', marginBottom: '24px' }}>
+                    <button
+                      className={authView === 'sign-in' ? 'pill active' : 'pill'}
+                      onClick={() => setAuthView('sign-in')}
+                      type="button"
+                      style={{ flex: 1, padding: '10px' }}
+                    >
+                      Sign In
+                    </button>
+                    <button
+                      className={authView === 'sign-up' ? 'pill active' : 'pill'}
+                      onClick={() => setAuthView('sign-up')}
+                      type="button"
+                      style={{ flex: 1, padding: '10px' }}
+                    >
+                      Create Account
+                    </button>
                   </div>
                   <label className="input-block">
                     <span style={{ marginBottom: '8px' }}>Email Address</span>

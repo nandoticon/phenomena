@@ -1216,77 +1216,91 @@ export default function App() {
   return (
     <main className={shellClassName} data-workspace={workspaceView}>
 
-      <section className="hero card hero-compact" style={{ padding: 'clamp(20px, 4vw, 32px)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '32px', background: 'var(--surface)', border: '1px solid var(--panel-border)', borderRadius: '24px' }}>
-        <div style={{ flex: '1 1 250px', minWidth: 'min(100%, 250px)' }}>
-          <p className="eyebrow" style={{ color: 'var(--accent)', fontSize: '0.75rem', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '16px' }}>Phenomena</p>
-          <h1 style={{ fontSize: 'clamp(2rem, 3vw, 2.5rem)', lineHeight: 1.1, marginBottom: '16px' }}>Organized whispers in the dark.</h1>
-          <p className="lede" style={{ fontSize: '1rem', lineHeight: 1.6, color: 'var(--muted)', maxWidth: '440px' }}>
+      <section className="hero card">
+        <div className="hero-content">
+          <p className="eyebrow">Phenomena</p>
+          <h1>Organized whispers in the dark.</h1>
+          <p className="lede">
             Isolate the noise. Embrace the rhythm of the text. A silent mechanism designed for scattered minds seeking focus on the next page.
           </p>
         </div>
-        <div className="hero-stats" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', flex: '0 1 500px' }}>
-          <div style={{ flex: '1 1 calc(50% - 8px)', padding: '20px', background: 'var(--surface-soft)', borderRadius: '20px', border: '1px solid var(--panel-border)' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--muted)', display: 'block', marginBottom: '8px' }}>Active Case</span>
-            <strong style={{ fontSize: '1.1rem', color: 'var(--text)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', display: 'block' }}>{activeProject.name}</strong>
+        <div className="hero-stats">
+          <div className="summary-card">
+            <span className="summary-label">Active Case</span>
+            <strong className="summary-value" style={{ whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', display: 'block' }}>{activeProject.name}</strong>
           </div>
-          <div style={{ flex: '1 1 calc(25% - 8px)', padding: '20px', background: 'var(--surface-soft)', borderRadius: '20px', border: '1px solid var(--panel-border)' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--muted)', display: 'block', marginBottom: '8px' }}>Surviving Line</span>
-            <strong style={{ fontSize: '1.5rem', color: 'var(--accent)', display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-              {activeProject.streak} <span style={{ fontSize: '0.9rem', color: 'var(--text)', fontWeight: 400 }}>days</span>
+          <div className="summary-card">
+            <span className="summary-label">Surviving Line</span>
+            <strong className="summary-value status-sprint">
+              {activeProject.streak} <span className="summary-label" style={{ display: 'inline', margin: 0 }}>days</span>
             </strong>
           </div>
-          <div style={{ flex: '1 1 calc(25% - 8px)', padding: '20px', background: 'var(--surface-soft)', borderRadius: '20px', border: '1px solid var(--panel-border)' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--muted)', display: 'block', marginBottom: '8px' }}>This Week</span>
-            <strong style={{ fontSize: '1.5rem', color: 'var(--secondary)', display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-              {weeklyMinutos} <span style={{ fontSize: '0.9rem', color: 'var(--text)', fontWeight: 400 }}>min</span>
+          <div className="summary-card">
+            <span className="summary-label">This Week</span>
+            <strong className="summary-value timer-value">
+              {weeklyMinutos} <span className="summary-label" style={{ display: 'inline', margin: 0 }}>min</span>
             </strong>
           </div>
         </div>
       </section>
 
-      <section className="workspace-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
-        <div className="nav-tabs" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', background: 'var(--surface-soft)', padding: '8px', borderRadius: '24px', border: '1px solid var(--panel-border)' }}>
+      <section className="workspace-nav">
+        <div className="nav-tabs">
           {[
-            { id: 'today', label: 'The Desk', icon: <Feather size={14} /> },
-            { id: 'projects', label: 'The Archives', icon: <BookOpen size={14} /> },
-            { id: 'insights', label: 'Echoes & Traces', icon: <Activity size={14} /> },
-            { id: 'account', label: 'Core Log', icon: <Settings size={14} /> },
+            { id: 'today', label: 'Desk', icon: <Feather size={20} /> },
+            { id: 'projects', label: 'Arch', icon: <BookOpen size={20} /> },
+            { id: 'insights', label: 'Echo', icon: <Activity size={20} /> },
+            { id: 'account', label: 'Core', icon: <Settings size={20} /> },
           ].map((tab) => (
             <button
-              className={workspaceView === tab.id ? 'nav-pill active' : 'nav-pill'}
+              className={`nav-pill ${workspaceView === tab.id ? 'active' : ''}`}
               key={tab.id}
               onClick={() => setWorkspaceView(tab.id as WorkspaceView)}
               type="button"
               aria-label={`Open ${tab.label}`}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', padding: '8px 16px', borderRadius: '16px', background: workspaceView === tab.id ? 'var(--surface-active)' : 'transparent', color: workspaceView === tab.id ? 'var(--text)' : 'var(--muted)' }}
             >
-              <span style={{ opacity: workspaceView === tab.id ? 1 : 0.7 }}>{tab.icon}</span> {tab.label}
+              <span className="nav-icon">{tab.icon}</span>
+              <span className="nav-label">{tab.label}</span>
             </button>
           ))}
         </div>
-        <div className="theme-toggle" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', background: 'var(--surface-soft)', padding: '8px', borderRadius: '24px', border: '1px solid var(--panel-border)' }}>
-          <button aria-label="Switch to Dark Mode" className={uiTheme === 'dark' ? 'nav-pill active' : 'nav-pill'} onClick={() => setUiTheme('dark')} type="button" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', padding: '8px 16px', borderRadius: '16px', background: uiTheme === 'dark' ? 'var(--input-bg)' : 'transparent', color: uiTheme === 'dark' ? 'var(--text)' : 'var(--muted)' }}><Moon size={14} /> Shadows</button>
-          <button aria-label="Switch to Light Mode" className={uiTheme === 'light' ? 'nav-pill active' : 'nav-pill'} onClick={() => setUiTheme('light')} type="button" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', padding: '8px 16px', borderRadius: '16px', background: uiTheme === 'light' ? 'var(--input-bg)' : 'transparent', color: uiTheme === 'light' ? 'var(--text)' : 'var(--muted)' }}><Sun size={14} /> Light</button>
+        <div className="theme-toggle">
+          <button
+            aria-label="Switch to Dark Mode"
+            className={`nav-pill ${uiTheme === 'dark' ? 'active' : ''}`}
+            onClick={() => setUiTheme('dark')}
+            type="button"
+          >
+            <Moon size={14} /> Shadows
+          </button>
+          <button
+            aria-label="Switch to Light Mode"
+            className={`nav-pill ${uiTheme === 'light' ? 'active' : ''}`}
+            onClick={() => setUiTheme('light')}
+            type="button"
+          >
+            <Sun size={14} /> Light
+          </button>
         </div>
       </section>
 
-      <section className="summary-strip" style={{ marginBottom: '32px' }}>
-        <div className="summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: '16px' }}>
-          <div className="summary-card" style={{ padding: '20px', background: 'var(--surface-soft)', borderRadius: '20px', border: '1px solid var(--panel-border)' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--muted)', display: 'block', marginBottom: '8px' }}>Current Target</span>
-            <strong style={{ fontSize: '1.1rem', color: 'var(--text)' }}>{activeGoal}</strong>
+      <section className="summary-strip">
+        <div className="summary-grid">
+          <div className="summary-card">
+            <span className="summary-label">Current Target</span>
+            <strong className="summary-value">{activeGoal}</strong>
           </div>
-          <div className="summary-card" style={{ padding: '20px', background: 'var(--surface-soft)', borderRadius: '20px', border: '1px solid var(--panel-border)' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--muted)', display: 'block', marginBottom: '8px' }}>Clock</span>
-            <strong style={{ fontSize: '1.2rem', color: 'var(--secondary)', fontWeight: 600 }}>{formatTime(secondsLeft)}</strong>
+          <div className="summary-card">
+            <span className="summary-label">Clock</span>
+            <strong className="summary-value timer-value">{formatTime(secondsLeft)}</strong>
           </div>
-          <div className="summary-card" style={{ padding: '20px', background: 'var(--surface-soft)', borderRadius: '20px', border: '1px solid var(--panel-border)' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--muted)', display: 'block', marginBottom: '8px' }}>State</span>
-            <strong style={{ fontSize: '1.1rem', color: mode === 'idle' ? 'var(--text)' : 'var(--accent)' }}>{mode === 'idle' ? 'Lurking' : mode === 'sprint' ? 'Hunting' : 'Breathing'}</strong>
+          <div className="summary-card">
+            <span className="summary-label">State</span>
+            <strong className={`summary-value status-${mode}`}>{mode === 'idle' ? 'Lurking' : mode === 'sprint' ? 'Hunting' : 'Breathing'}</strong>
           </div>
-          <div className="summary-card" style={{ padding: '20px', background: 'var(--surface-soft)', borderRadius: '20px', border: '1px solid var(--panel-border)' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--muted)', display: 'block', marginBottom: '8px' }}>Radar</span>
-            <strong style={{ fontSize: '1rem', color: 'var(--text)' }}>{session ? cloudLabel : 'Local isolation'}</strong>
+          <div className="summary-card">
+            <span className="summary-label">Radar</span>
+            <strong className="summary-value">{session ? cloudLabel : 'Local isolation'}</strong>
           </div>
         </div>
         {!session ? (
