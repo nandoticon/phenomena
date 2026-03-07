@@ -1,0 +1,16 @@
+{
+    "name": "Phenomena",
+    "short_name": "Phenomena",
+    "description": "Organized whispers in the dark.",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#09080b",
+    "theme_color": "#09080b",
+    "icons": [
+        {
+            "src": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/feather.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        }
+    ]
+}

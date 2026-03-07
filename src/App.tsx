@@ -1257,6 +1257,7 @@ export default function App() {
               key={tab.id}
               onClick={() => setWorkspaceView(tab.id as WorkspaceView)}
               type="button"
+              aria-label={`Open ${tab.label}`}
               style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', padding: '8px 16px', borderRadius: '16px', background: workspaceView === tab.id ? 'var(--surface-active)' : 'transparent', color: workspaceView === tab.id ? 'var(--text)' : 'var(--muted)' }}
             >
               <span style={{ opacity: workspaceView === tab.id ? 1 : 0.7 }}>{tab.icon}</span> {tab.label}
@@ -1264,8 +1265,8 @@ export default function App() {
           ))}
         </div>
         <div className="theme-toggle" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', background: 'var(--surface-soft)', padding: '8px', borderRadius: '24px', border: '1px solid var(--panel-border)' }}>
-          <button className={uiTheme === 'dark' ? 'nav-pill active' : 'nav-pill'} onClick={() => setUiTheme('dark')} type="button" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', padding: '8px 16px', borderRadius: '16px', background: uiTheme === 'dark' ? 'var(--input-bg)' : 'transparent', color: uiTheme === 'dark' ? 'var(--text)' : 'var(--muted)' }}><Moon size={14} /> Shadows</button>
-          <button className={uiTheme === 'light' ? 'nav-pill active' : 'nav-pill'} onClick={() => setUiTheme('light')} type="button" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', padding: '8px 16px', borderRadius: '16px', background: uiTheme === 'light' ? 'var(--input-bg)' : 'transparent', color: uiTheme === 'light' ? 'var(--text)' : 'var(--muted)' }}><Sun size={14} /> Light</button>
+          <button aria-label="Switch to Dark Mode" className={uiTheme === 'dark' ? 'nav-pill active' : 'nav-pill'} onClick={() => setUiTheme('dark')} type="button" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', padding: '8px 16px', borderRadius: '16px', background: uiTheme === 'dark' ? 'var(--input-bg)' : 'transparent', color: uiTheme === 'dark' ? 'var(--text)' : 'var(--muted)' }}><Moon size={14} /> Shadows</button>
+          <button aria-label="Switch to Light Mode" className={uiTheme === 'light' ? 'nav-pill active' : 'nav-pill'} onClick={() => setUiTheme('light')} type="button" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', padding: '8px 16px', borderRadius: '16px', background: uiTheme === 'light' ? 'var(--input-bg)' : 'transparent', color: uiTheme === 'light' ? 'var(--text)' : 'var(--muted)' }}><Sun size={14} /> Light</button>
         </div>
       </section>
 
