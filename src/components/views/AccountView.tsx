@@ -1,8 +1,8 @@
 // @ts-nocheck
-import React from 'react';
+import React, { memo } from 'react';
 import { Cloud, Lock, Shield, Server, FileText, Settings, Key, AlertCircle } from 'lucide-react';
 
-export function AccountView({
+function AccountViewComponent({
   hasSupabaseConfig, cloudLabel, session, remoteUpdatedAt, authView, setAuthView,
   authEmail, setAuthEmail, authPassword, setAuthPassword, authPasswordConfirm, setAuthPasswordConfirm,
   signInWithPassword, signUpWithPassword, sendPasswordReset, updatePassword, signOut,
@@ -258,3 +258,4 @@ export function AccountView({
     </section>
   );
 }
+export const AccountView = memo(AccountViewComponent);

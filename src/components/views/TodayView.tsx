@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { Play, RotateCcw, Check, ChevronDown, ChevronUp, BellRing, Target, Clock, MessageSquare, Anchor, Activity, FileText, CheckCircle2 } from 'lucide-react';
 
 function MobileAccordion({ title, defaultOpen = false, children }: any) {
@@ -25,7 +25,7 @@ function MobileAccordion({ title, defaultOpen = false, children }: any) {
   );
 }
 
-export function TodayView({
+function TodayViewComponent({
   activeProject, ritualPronto, readyToStart, activeGoal, streakLabel,
   reminderDue, recentSessions, coaching, recoveryMessage, restart, analytics,
   updateProject, state, setState, resetRitual, toggleRitual,
@@ -295,3 +295,5 @@ export function TodayView({
     </>
   );
 }
+
+export const TodayView = memo(TodayViewComponent);

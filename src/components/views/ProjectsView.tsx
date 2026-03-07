@@ -1,8 +1,8 @@
 // @ts-nocheck
-import React from 'react';
+import React, { memo } from 'react';
 import { Book, Edit3, Archive, Link as LinkIcon, Plus, Music, Maximize, EyeOff, FolderOpen } from 'lucide-react';
 
-export function ProjectsView({
+function ProjectsViewComponent({
   activeProjetos, activeProject, setActiveProject, setMode, setSecondsLeft,
   updateProject, createNewProject, archiveActiveProject, newProjectName, setNewProjectName,
   newProjectNote, setNewProjectNote, removeAttachment, newAttachmentLabel, setNewAttachmentLabel,
@@ -183,3 +183,4 @@ export function ProjectsView({
     </section>
   );
 }
+export const ProjectsView = memo(ProjectsViewComponent);

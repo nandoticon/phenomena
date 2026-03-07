@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Project, SessionRecord } from '../types';
 
 export function useTimer(
@@ -52,17 +52,20 @@ export function useTimer(
     return () => window.clearInterval(timer);
   }, [activeProject, mode]);
 
-  function startSprint() {
+  const startSprint = useCallback(() => {
+    if (!activeProject) return;
     setMode('sprint');
     setSecondsLeft(activeProject.sprintMinutes * 60);
-  }
+  }, [activeProject]);
 
-  function resetTimer() {
+  const resetTimer = useCallback(() => {
+    if (!activeProject) return;
     setMode('idle');
     setSecondsLeft(activeProject.sprintMinutes * 60);
-  }
+  }, [activeProject]);
 
-  function completeSession() {
+  const completeSession = useCallback(() => {
+    if (!activeProject) return;
     const today = getTodayKey();
     const hadHoje = activeProject.lastCompletionDate === today;
     const previousDate = activeProject.lastCompletionDate;
@@ -76,6 +79,8 @@ export function useTimer(
     }
 
     const minutesWorked = mode === 'sprint' ? activeProject.sprintMinutes - Math.floor(secondsLeft / 60) : activeProject.sprintMinutes;
+    const currentGoal = activeProject.customGoal.trim() || activeProject.selectedGoal;
+
     const record: SessionRecord = {
       id: createSessionId(activeProject.id),
       date: today,
@@ -84,7 +89,7 @@ export function useTimer(
       mood: state.mood,
       energy: state.energy,
       focus: state.focus,
-      goal: activeGoal,
+      goal: currentGoal,
       outcome: activeProject.sessionOutcome,
       projectId: activeProject.id,
       note: sessionNote.trim(),
@@ -114,9 +119,10 @@ export function useTimer(
     setRestartCue('');
     setMode('idle');
     setSecondsLeft(activeProject.sprintMinutes * 60);
-  }
+  }, [activeProject, mode, secondsLeft, state.mood, state.energy, state.focus, sessionNote, restartCue, setState, setSessionNote, setRestartCue, getTodayKey, getTimeKey, getDayDiff, createSessionId, ritualCheckDefaults, restartCheckDefaults]);
 
-  function activateRestartMode() {
+  const activateRestartMode = useCallback(() => {
+    if (!activeProject) return;
     updateProject((project) => ({
       ...project,
       selectedGoal: 'Bater 50 palavras',
@@ -132,9 +138,9 @@ export function useTimer(
     setRestartCue('Which hook is the easiest to pull on your next start?');
     setMode('idle');
     setSecondsLeft(10 * 60);
-  }
+  }, [activeProject, updateProject, setSessionNote, setRestartCue, ritualCheckDefaults, restartCheckDefaults]);
 
-  function formatTime(totalSeconds: number) {
+  const formatTime = useCallback((totalSeconds: number) => {
     const minutes = Math.floor(totalSeconds / 60)
       .toString()
       .padStart(2, '0');
@@ -142,7 +148,7 @@ export function useTimer(
       .toString()
       .padStart(2, '0');
     return `${minutes}:${seconds}`;
-  }
+  }, []);
 
 
   return {

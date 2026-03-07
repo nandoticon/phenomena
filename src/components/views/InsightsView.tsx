@@ -1,10 +1,10 @@
 // @ts-nocheck
-import React from 'react';
+import React, { memo } from 'react';
 import { LineChart, BarChart } from '../../App';
 import { Activity, BarChart2, TrendingUp, Search, Calendar, Clock, Disc3 } from 'lucide-react';
 import type { ChartRange, ComparisonMetric, SessionResultado, HistoryProjectFilter, HistoryOutcomeFilter } from '../../types';
 
-export function InsightsView({
+function InsightsViewComponent({
   dashboard, chartRange, setChartRange, comparisonMetric, setComparisonMetric,
   projectComparisonSeries, activeChartPoint, setActiveChartPoint, recentDaySeries,
   activeProject, analytics, outcomeLabel, outcomeSeries, moodSeries,
@@ -206,3 +206,4 @@ export function InsightsView({
     </section>
   );
 }
+export const InsightsView = memo(InsightsViewComponent);

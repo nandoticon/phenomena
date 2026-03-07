@@ -1,7 +1,15 @@
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { ChangeEvent, useEffect, useMemo, useRef, useState, useCallback, lazy, Suspense } from 'react';
 import { Moon, Sun, BookOpen, Activity, LayoutDashboard, Settings, Feather } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
 import { hasSupabaseConfig, supabase } from './lib/supabase';
+import { useAuth } from './hooks/useAuth';
+import { useTimer } from './hooks/useTimer';
+import { useCloudSync } from './hooks/useCloudSync';
+
+const TodayView = lazy(() => import('./components/views/TodayView').then(m => ({ default: m.TodayView })));
+const ProjectsView = lazy(() => import('./components/views/ProjectsView').then(m => ({ default: m.ProjectsView })));
+const InsightsView = lazy(() => import('./components/views/InsightsView').then(m => ({ default: m.InsightsView })));
+const AccountView = lazy(() => import('./components/views/AccountView').then(m => ({ default: m.AccountView })));
 
 type RitualStep = {
   id: string;
@@ -848,13 +856,6 @@ export function formatCloudTimestamp(timestamp: string | null) {
   }).format(new Date(timestamp));
 }
 
-import { useAuth } from './hooks/useAuth';
-import { useTimer } from './hooks/useTimer';
-import { useCloudSync } from './hooks/useCloudSync';
-import { TodayView } from './components/views/TodayView';
-import { ProjectsView } from './components/views/ProjectsView';
-import { InsightsView } from './components/views/InsightsView';
-import { AccountView } from './components/views/AccountView';
 export default function App() {
   const [state, setState] = useState<AppState>(defaultState);
   const [hydrated, setHydrated] = useState(false);
@@ -867,6 +868,24 @@ export default function App() {
   const [newProjectNote, setNewProjectNote] = useState('');
   const [sessionNote, setSessionNote] = useState('');
   const [restartCue, setRestartCue] = useState('');
+
+  const updateProject = useCallback((updater: (project: Project) => Project) => {
+    setState((current) => ({
+      ...current,
+      projects: current.projects.map((project) =>
+        project.id === current.activeProjectId ? updater(project) : project,
+      ),
+    }));
+  }, []);
+
+  const updateProfile = useCallback(<K extends keyof Profile>(key: K, value: Profile[K]) => {
+    setProfile((current) => (current ? { ...current, [key]: value } : current));
+  }, [setProfile]);
+
+  const setActiveProject = useCallback((projectId: string) => {
+    setProfile((current) => (current ? { ...current, active_project_id: projectId } : current));
+    setState((current) => ({ ...current, activeProjectId: projectId }));
+  }, [setProfile]);
 
   const { mode, setMode, secondsLeft, setSecondsLeft, startSprint, resetTimer, completeSession, activateRestartMode, formatTime } = useTimer(
     state.projects.find((project) => project.id === state.activeProjectId) ?? state.projects[0],
@@ -975,59 +994,44 @@ export default function App() {
     return null;
   }
 
-  const ritualPronto = ritualSteps.every((step) => activeProject.ritualChecks[step.id]);
-  const restartPronto = restartSteps.every((step) => activeProject.restartChecks[step]);
+  const ritualPronto = useMemo(() => ritualSteps.every((step) => activeProject.ritualChecks[step.id]), [activeProject.ritualChecks]);
+  const restartPronto = useMemo(() => restartSteps.every((step) => activeProject.restartChecks[step]), [activeProject.restartChecks]);
   const readyToStart = ritualPronto && (!activeProject.restartMode || restartPronto);
-  const activeGoal = projectGoal(activeProject);
-  const streakLabel = getStreakLabel(activeProject.lastCompletionDate, activeProject.streak);
-  const reminderStatus = getReminderStatus(notificationState, activeProject.reminderEnabled);
-  const reminderDue = shouldTriggerReminder(activeProject);
-  const recentSessions = getProjectSessions(activeProject.id, state.sessions).slice(-5).reverse();
-  const coaching = getCoachingInsight(activeProject, state);
-  const recoveryMessage = getRecoveryMessage(activeProject);
-  const restart = getRestartState(activeProject);
-  const weeklyMinutos = getWeeklyMinutes(activeProject.id, state.sessions);
-  const analytics = getProjectAnalytics(activeProject, state.sessions);
-  const dashboard = getCrossProjectSummary(state.projects, state.sessions);
-  const recentDaySeries = getRecentDaySeries(activeProject.id, state.sessions, chartRange);
-  const outcomeSeries = getOutcomeSeries(activeProject.id, state.sessions, chartRange);
-  const moodSeries = getMoodSeries(activeProject.id, state.sessions, chartRange);
-  const projectComparisonSeries = getProjectComparisonSeries(state.projects, state.sessions, comparisonMetric, chartRange);
-  const filteredHistory = state.sessions
-    .slice()
-    .reverse()
-    .filter((entry) => (historyProjectFilter === 'active' ? entry.projectId === activeProject.id : true))
-    .filter((entry) => (historyOutcomeFilter === 'all' ? true : entry.outcome === historyOutcomeFilter))
-    .filter((entry) => {
-      const q = historyQuery.trim().toLowerCase();
-      if (!q) {
-        return true;
-      }
-      return [entry.goal, entry.note, entry.restartCue, projectNameMap[entry.projectId] ?? '']
-        .join(' ')
-        .toLowerCase()
-        .includes(q);
-    });
+  const activeGoal = useMemo(() => projectGoal(activeProject), [activeProject]);
+  const streakLabel = useMemo(() => getStreakLabel(activeProject.lastCompletionDate, activeProject.streak), [activeProject.lastCompletionDate, activeProject.streak]);
+  const reminderStatus = useMemo(() => getReminderStatus(notificationState, activeProject.reminderEnabled), [notificationState, activeProject.reminderEnabled]);
+  const reminderDue = useMemo(() => shouldTriggerReminder(activeProject), [activeProject]);
+  const recentSessions = useMemo(() => getProjectSessions(activeProject.id, state.sessions).slice(-5).reverse(), [activeProject.id, state.sessions]);
+  const coaching = useMemo(() => getCoachingInsight(activeProject, state), [activeProject, state.sessions, state.mood, state.energy, state.focus]);
+  const recoveryMessage = useMemo(() => getRecoveryMessage(activeProject), [activeProject]);
+  const restart = useMemo(() => getRestartState(activeProject), [activeProject]);
+  const weeklyMinutos = useMemo(() => getWeeklyMinutes(activeProject.id, state.sessions), [activeProject.id, state.sessions]);
+  const analytics = useMemo(() => getProjectAnalytics(activeProject, state.sessions), [activeProject, state.sessions]);
+  const dashboard = useMemo(() => getCrossProjectSummary(state.projects, state.sessions), [state.projects, state.sessions]);
+  const recentDaySeries = useMemo(() => getRecentDaySeries(activeProject.id, state.sessions, chartRange), [activeProject.id, state.sessions, chartRange]);
+  const outcomeSeries = useMemo(() => getOutcomeSeries(activeProject.id, state.sessions, chartRange), [activeProject.id, state.sessions, chartRange]);
+  const moodSeries = useMemo(() => getMoodSeries(activeProject.id, state.sessions, chartRange), [activeProject.id, state.sessions, chartRange]);
+  const projectComparisonSeries = useMemo(() => getProjectComparisonSeries(state.projects, state.sessions, comparisonMetric, chartRange), [state.projects, state.sessions, comparisonMetric, chartRange]);
 
-  function updateProject(updater: (project: Project) => Project) {
-    setState((current) => ({
-      ...current,
-      projects: current.projects.map((project) =>
-        project.id === current.activeProjectId ? updater(project) : project,
-      ),
-    }));
-  }
+  const filteredHistory = useMemo(() => {
+    return state.sessions
+      .slice()
+      .reverse()
+      .filter((entry) => (historyProjectFilter === 'active' ? entry.projectId === activeProject.id : true))
+      .filter((entry) => (historyOutcomeFilter === 'all' ? true : entry.outcome === historyOutcomeFilter))
+      .filter((entry) => {
+        const q = historyQuery.trim().toLowerCase();
+        if (!q) {
+          return true;
+        }
+        return [entry.goal, entry.note, entry.restartCue, projectNameMap[entry.projectId] ?? '']
+          .join(' ')
+          .toLowerCase()
+          .includes(q);
+      });
+  }, [state.sessions, historyProjectFilter, activeProject.id, historyOutcomeFilter, historyQuery, projectNameMap]);
 
-  function updateProfile<K extends keyof Profile>(key: K, value: Profile[K]) {
-    setProfile((current) => (current ? { ...current, [key]: value } : current));
-  }
-
-  function setActiveProject(projectId: string) {
-    setProfile((current) => (current ? { ...current, active_project_id: projectId } : current));
-    setState((current) => ({ ...current, activeProjectId: projectId }));
-  }
-
-  function addAttachment() {
+  const addAttachment = useCallback(() => {
     const label = newAttachmentLabel.trim();
     const url = newAttachmentUrl.trim();
     if (!label || !url) {
@@ -1047,16 +1051,16 @@ export default function App() {
     }));
     setNewAttachmentLabel('');
     setNewAttachmentUrl('');
-  }
+  }, [newAttachmentLabel, newAttachmentUrl, updateProject]);
 
-  function removeAttachment(attachmentId: string) {
+  const removeAttachment = useCallback((attachmentId: string) => {
     updateProject((project) => ({
       ...project,
       attachments: project.attachments.filter((attachment) => attachment.id !== attachmentId),
     }));
-  }
+  }, [updateProject]);
 
-  function toggleRitual(id: string) {
+  const toggleRitual = useCallback((id: string) => {
     updateProject((project) => ({
       ...project,
       ritualChecks: {
@@ -1064,9 +1068,9 @@ export default function App() {
         [id]: !project.ritualChecks[id],
       },
     }));
-  }
+  }, [updateProject]);
 
-  function toggleRestartCheck(step: string) {
+  const toggleRestartCheck = useCallback((step: string) => {
     updateProject((project) => ({
       ...project,
       restartChecks: {
@@ -1074,39 +1078,34 @@ export default function App() {
         [step]: !project.restartChecks[step],
       },
     }));
-  }
+  }, [updateProject]);
 
-  function resetRitual() {
+  const resetRitual = useCallback(() => {
     updateProject((project) => ({
       ...project,
       ritualChecks: ritualCheckDefaults(),
     }));
-  }
+  }, [updateProject]);
 
 
-  async function enableNotifications() {
+  const enableNotifications = useCallback(async () => {
     if (typeof Notification === 'undefined') {
       setNotificationState('unsupported');
       return;
     }
     const permission = await Notification.requestPermission();
     setNotificationState(permission);
-  }
+  }, []);
 
-  async function toggleFullscreen() {
+  const toggleFullscreen = useCallback(async () => {
     if (!document.fullscreenElement) {
       await document.documentElement.requestFullscreen();
     } else {
       await document.exitFullscreen();
     }
-  }
+  }, []);
 
-
-
-
-
-
-  function archiveActiveProject() {
+  const archiveActiveProject = useCallback(() => {
     if (activeProjetos.length <= 1) {
       return;
     }
@@ -1118,9 +1117,9 @@ export default function App() {
         project.id === current.activeProjectId ? { ...project, archived: true, restartMode: false } : project,
       ),
     }));
-  }
+  }, [activeProjetos, activeProject.id]);
 
-  function restoreProject(projectId: string) {
+  const restoreProject = useCallback((projectId: string) => {
     setProfile((current) => (current ? { ...current, active_project_id: projectId } : current));
     setState((current) => ({
       ...current,
@@ -1129,7 +1128,8 @@ export default function App() {
         project.id === projectId ? { ...project, archived: false } : project,
       ),
     }));
-  }
+  }, [setProfile]);
+
 
   function exportBackup() {
     const payload = JSON.stringify(state, null, 2);
@@ -1164,7 +1164,7 @@ export default function App() {
     reader.readAsText(file);
   }
 
-  function createNewProject() {
+  const createNewProject = useCallback(() => {
     const name = newProjectName.trim();
     if (!name) {
       return;
@@ -1184,9 +1184,9 @@ export default function App() {
     setNewProjectNote('');
     setMode('idle');
     setSecondsLeft(project.sprintMinutes * 60);
-  }
+  }, [newProjectName, newProjectNote, profile, setProfile, setMode, setSecondsLeft]);
 
-  function applyProfileDefaultsToActiveProject() {
+  const applyProfileDefaultsToActiveProject = useCallback(() => {
     if (!profile) {
       return;
     }
@@ -1196,7 +1196,7 @@ export default function App() {
       breakMinutes: profile.default_break_minutes,
     }));
     setSecondsLeft(profile.default_sprint_minutes * 60);
-  }
+  }, [profile, updateProject, setSecondsLeft]);
 
 
   const shellClassName = `shell theme-${activeProject.cueTheme} ui-${uiTheme} ${isFullscreen ? 'fullscreen-mode' : ''} ${mode === 'sprint' ? 'focus-dim-bg' : ''}`;
@@ -1300,38 +1300,40 @@ export default function App() {
         ) : null}
       </section>
 
-      {workspaceView === 'today' && <TodayView {...{
-        activeProject, ritualPronto, readyToStart, activeGoal, streakLabel,
-        reminderDue, recentSessions, coaching, recoveryMessage, restart, analytics,
-        updateProject, state, setState, resetRitual, toggleRitual,
-        mode, secondsLeft, formatTime, startSprint, resetTimer, completeSession,
-        sessionNote, setSessionNote, restartCue, setRestartCue, activateRestartMode,
-        toggleRestartCheck, goalLibrary, ritualSteps, restartSteps, outcomeOptions, outcomeLabel
-      }} />}
-      {workspaceView === 'projects' && <ProjectsView {...{
-        activeProjetos, activeProject, setActiveProject, setMode, setSecondsLeft,
-        updateProject, createNewProject, archiveActiveProject, newProjectName, setNewProjectName,
-        newProjectNote, setNewProjectNote, removeAttachment, newAttachmentLabel, setNewAttachmentLabel,
-        newAttachmentUrl, setNewAttachmentUrl, addAttachment, archivedProjetos, restoreProject,
-        ambientPresets, toggleFullscreen, isFullscreen
-      }} />}
-      {workspaceView === 'insights' && <InsightsView {...{
-        dashboard, chartRange, setChartRange, comparisonMetric, setComparisonMetric,
-        projectComparisonSeries, activeChartPoint, setActiveChartPoint, recentDaySeries,
-        activeProject, analytics, outcomeLabel, outcomeSeries, moodSeries,
-        historyQuery, setHistoryQuery, historyProjectFilter, setHistoryProjectFilter,
-        historyOutcomeFilter, setHistoryOutcomeFilter, outcomeOptions, filteredHistory,
-        projectNameMap
-      }} />}
-      {workspaceView === 'account' && <AccountView {...{
-        hasSupabaseConfig, cloudLabel, session, remoteUpdatedAt, authView, setAuthView,
-        authEmail, setAuthEmail, authPassword, setAuthPassword, authPasswordConfirm, setAuthPasswordConfirm,
-        signInWithPassword, signUpWithPassword, sendPasswordReset, updatePassword, signOut,
-        authMessage, remoteSnapshot, getProjectAttachmentCount, normalizedMessage,
-        profile, updateProfile, applyProfileDefaultsToActiveProject, profileMessage, passwordMessage,
-        activeProject, updateProject, reminderStatus, enableNotifications, exportBackup, fileInputRef,
-        importBackup, importMessage, setSenhaMessage, formatCloudTimestamp
-      }} />}
+      <Suspense fallback={<div className="page-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '50vh', color: 'var(--muted)', fontSize: '0.9rem' }}>Aligning the stars...</div>}>
+        {workspaceView === 'today' && <TodayView {...{
+          activeProject, ritualPronto, readyToStart, activeGoal, streakLabel,
+          reminderDue, recentSessions, coaching, recoveryMessage, restart, analytics,
+          updateProject, state, setState, resetRitual, toggleRitual,
+          mode, secondsLeft, formatTime, startSprint, resetTimer, completeSession,
+          sessionNote, setSessionNote, restartCue, setRestartCue, activateRestartMode,
+          toggleRestartCheck, goalLibrary, ritualSteps, restartSteps, outcomeOptions, outcomeLabel
+        }} />}
+        {workspaceView === 'projects' && <ProjectsView {...{
+          activeProjetos, activeProject, setActiveProject, setMode, setSecondsLeft,
+          updateProject, createNewProject, archiveActiveProject, newProjectName, setNewProjectName,
+          newProjectNote, setNewProjectNote, removeAttachment, newAttachmentLabel, setNewAttachmentLabel,
+          newAttachmentUrl, setNewAttachmentUrl, addAttachment, archivedProjetos, restoreProject,
+          ambientPresets, toggleFullscreen, isFullscreen
+        }} />}
+        {workspaceView === 'insights' && <InsightsView {...{
+          dashboard, chartRange, setChartRange, comparisonMetric, setComparisonMetric,
+          projectComparisonSeries, activeChartPoint, setActiveChartPoint, recentDaySeries,
+          activeProject, analytics, outcomeLabel, outcomeSeries, moodSeries,
+          historyQuery, setHistoryQuery, historyProjectFilter, setHistoryProjectFilter,
+          historyOutcomeFilter, setHistoryOutcomeFilter, outcomeOptions, filteredHistory,
+          projectNameMap
+        }} />}
+        {workspaceView === 'account' && <AccountView {...{
+          hasSupabaseConfig, cloudLabel, session, remoteUpdatedAt, authView, setAuthView,
+          authEmail, setAuthEmail, authPassword, setAuthPassword, authPasswordConfirm, setAuthPasswordConfirm,
+          signInWithPassword, signUpWithPassword, sendPasswordReset, updatePassword, signOut,
+          authMessage, remoteSnapshot, getProjectAttachmentCount, normalizedMessage,
+          profile, updateProfile, applyProfileDefaultsToActiveProject, profileMessage, passwordMessage,
+          activeProject, updateProject, reminderStatus, enableNotifications, exportBackup, fileInputRef,
+          importBackup, importMessage, setSenhaMessage, formatCloudTimestamp
+        }} />}
+      </Suspense>
 
 
 
