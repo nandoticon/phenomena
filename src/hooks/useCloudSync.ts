@@ -1,23 +1,22 @@
-// @ts-nocheck
 import { useState, useEffect, useRef } from 'react';
-import type { NuvemStatus, AppState } from '../types';
+import type { NuvemStatus, AppState, Profile, ProjectAttachment, SessionResultado, Mood, Energy, Focus, CueTheme, Project } from '../types';
+import { ambientPresets, goalLibrary, DEFAULT_PROJECT_ID } from '../constants';
+import { buildStateFromNormalizedTables, serializeSyncState } from '../utils/storage';
+import { getTodayKey } from '../utils/date';
 
 export function useCloudSync(
   supabase: any,
   hasSupabaseConfig: boolean,
   session: any,
   state: AppState,
-  setState: any,
+  setState: React.Dispatch<React.SetStateAction<AppState>>,
   hydrated: boolean,
-  profile: any,
-  buildStateFromNormalizedTables: any,
-  serializeSyncState: any
+  profile: Profile | null,
 ) {
   const [cloudStatus, setNuvemStatus] = useState<NuvemStatus>('local');
   const [remoteLoaded, setRemoteLoaded] = useState(false);
   const [remoteSnapshot, setRemoteSnapshot] = useState<AppState | null>(null);
   const [remoteUpdatedAt, setRemoteUpdatedAt] = useState<string | null>(null);
-
   const [normalizedMessage, setNormalizedMessage] = useState('');
 
   const lastSyncedStateRef = useRef<string>('');
@@ -67,18 +66,18 @@ export function useCloudSync(
 
       if ((projectResult.data?.length ?? 0) > 0 || (sessionResult.data?.length ?? 0) > 0 || (attachmentResult.data?.length ?? 0) > 0) {
         const remoteState = buildStateFromNormalizedTables(
-          (projectResult.data ?? []) as Array<Record<string, unknown>>,
-          (sessionResult.data ?? []) as Array<Record<string, unknown>>,
-          (attachmentResult.data ?? []) as Array<Record<string, unknown>>,
+          (projectResult.data ?? []) as any[],
+          (sessionResult.data ?? []) as any[],
+          (attachmentResult.data ?? []) as any[],
           profileResult.data?.active_project_id ?? null,
         );
         setState(remoteState);
         lastSyncedStateRef.current = serializeSyncState(remoteState);
         setRemoteSnapshot(remoteState);
         const timestamps = [
-          ...(projectResult.data ?? []).map((row) => row.updated_at).filter(Boolean),
-          ...(attachmentResult.data ?? []).map((row) => row.updated_at).filter(Boolean),
-          ...(sessionResult.data ?? []).map((row) => row.created_at).filter(Boolean),
+          ...(projectResult.data ?? []).map((row: any) => row.updated_at).filter(Boolean),
+          ...(attachmentResult.data ?? []).map((row: any) => row.updated_at).filter(Boolean),
+          ...(sessionResult.data ?? []).map((row: any) => row.created_at).filter(Boolean),
           profileResult.data?.updated_at,
         ].filter(Boolean) as string[];
         const latestTimestamp = timestamps.sort().at(-1) ?? null;
@@ -98,10 +97,16 @@ export function useCloudSync(
     return () => {
       cancelled = true;
     };
-  }, [hydrated, session?.user?.id]);
+  }, [hydrated, session?.user?.id, hasSupabaseConfig, supabase]);
 
   useEffect(() => {
     if (!hydrated || !hasSupabaseConfig || !supabase || !session?.user || !remoteLoaded) {
+      if (!session) {
+        setRemoteLoaded(false);
+        setRemoteSnapshot(null);
+        setRemoteUpdatedAt(null);
+        setNuvemStatus('local');
+      }
       return;
     }
 
@@ -124,7 +129,6 @@ export function useCloudSync(
         break_minutes: project.breakMinutes,
         streak: project.streak,
         last_completion_date: project.lastCompletionDate,
-        session_outcome: project.sessionOutcome,
         reminder_enabled: project.reminderEnabled,
         reminder_time: project.reminderTime,
         last_reminder_date: project.lastReminderDate,
@@ -134,6 +138,7 @@ export function useCloudSync(
         archived: project.archived,
         restart_mode: project.restartMode,
         restart_checks: project.restartChecks,
+        session_outcome: project.sessionOutcome || null,
       }));
 
       const attachmentRows = state.projects.flatMap((project) =>
@@ -161,7 +166,7 @@ export function useCloudSync(
         outcome: entry.outcome,
         note: entry.note,
         restart_cue: entry.restartCue,
-        used_restart_mode: entry.usedRecomeçoMode,
+        used_restart_mode: entry.usedRestartMode,
       }));
 
       const [existingProjetos, existingSessões, existingAnexos] = await Promise.all([
@@ -195,14 +200,14 @@ export function useCloudSync(
       if (attachmentRows.length) {
         const { error } = await client.from('attachments').upsert(attachmentRows, { onConflict: 'user_id,project_id,attachment_id' });
         if (error) {
-          setNormalizedMessage('Anexos mirror sync failed.');
+          setNormalizedMessage('Attachments mirror sync failed.');
           return;
         }
       }
 
-      const remoteProjectIds = (existingProjetos.data ?? []).map((row) => String(row.project_id));
-      const localProjectIds = new Set(projectRows.map((row) => row.project_id));
-      const staleProjectIds = remoteProjectIds.filter((id) => !localProjectIds.has(id));
+      const remoteProjectIds = (existingProjetos.data ?? []).map((row: any) => String(row.project_id));
+      const localProjectIds = new Set(projectRows.map((row: any) => row.project_id));
+      const staleProjectIds = remoteProjectIds.filter((id: any) => !localProjectIds.has(id));
       if (staleProjectIds.length) {
         const { error } = await client.from('projects').delete().eq('user_id', session.user.id).in('project_id', staleProjectIds);
         if (error) {
@@ -211,9 +216,9 @@ export function useCloudSync(
         }
       }
 
-      const remoteSessionIds = (existingSessões.data ?? []).map((row) => String(row.client_session_id));
-      const localSessionIds = new Set(sessionRows.map((row) => row.client_session_id));
-      const staleSessionIds = remoteSessionIds.filter((id) => !localSessionIds.has(id));
+      const remoteSessionIds = (existingSessões.data ?? []).map((row: any) => String(row.client_session_id));
+      const localSessionIds = new Set(sessionRows.map((row: any) => row.client_session_id));
+      const staleSessionIds = remoteSessionIds.filter((id: any) => !localSessionIds.has(id));
       if (staleSessionIds.length) {
         const { error } = await client.from('sessions').delete().eq('user_id', session.user.id).in('client_session_id', staleSessionIds);
         if (error) {
@@ -222,13 +227,13 @@ export function useCloudSync(
         }
       }
 
-      const remoteAnexoIds = (existingAnexos.data ?? []).map((row) => String(row.attachment_id));
-      const localAnexoIds = new Set(attachmentRows.map((row) => row.attachment_id));
-      const staleAnexoIds = remoteAnexoIds.filter((id) => !localAnexoIds.has(id));
+      const remoteAnexoIds = (existingAnexos.data ?? []).map((row: any) => String(row.attachment_id));
+      const localAnexoIds = new Set(attachmentRows.map((row: any) => row.attachment_id));
+      const staleAnexoIds = remoteAnexoIds.filter((id: any) => !localAnexoIds.has(id));
       if (staleAnexoIds.length) {
         const { error } = await client.from('attachments').delete().eq('user_id', session.user.id).in('attachment_id', staleAnexoIds);
         if (error) {
-          setNormalizedMessage('Anexo cleanup failed after sync.');
+          setNormalizedMessage('Attachments cleanup failed after sync.');
           return;
         }
       }
@@ -254,7 +259,7 @@ export function useCloudSync(
     }, 900);
 
     return () => window.clearTimeout(timer);
-  }, [hydrated, profile, remoteLoaded, session?.user?.id, state]);
+  }, [hydrated, profile, remoteLoaded, session?.user?.id, state, hasSupabaseConfig, supabase]);
 
   async function pullCloudState() {
     if (!supabase || !session?.user) {
@@ -271,29 +276,27 @@ export function useCloudSync(
     const error = projectResult.error ?? sessionResult.error ?? attachmentResult.error ?? profileResult.error;
     if (error || ((projectResult.data?.length ?? 0) === 0 && (sessionResult.data?.length ?? 0) === 0 && (attachmentResult.data?.length ?? 0) === 0)) {
       setNuvemStatus('error');
-      setAuthMessage('Failed to restore cloud copy.');
       return;
     }
 
     const nextState = buildStateFromNormalizedTables(
-      (projectResult.data ?? []) as Array<Record<string, unknown>>,
-      (sessionResult.data ?? []) as Array<Record<string, unknown>>,
-      (attachmentResult.data ?? []) as Array<Record<string, unknown>>,
+      (projectResult.data ?? []) as any[],
+      (sessionResult.data ?? []) as any[],
+      (attachmentResult.data ?? []) as any[],
       profileResult.data?.active_project_id ?? null,
     );
     setState(nextState);
     lastSyncedStateRef.current = serializeSyncState(nextState);
     setRemoteSnapshot(nextState);
     const timestamps = [
-      ...(projectResult.data ?? []).map((row) => row.updated_at).filter(Boolean),
-      ...(attachmentResult.data ?? []).map((row) => row.updated_at).filter(Boolean),
-      ...(sessionResult.data ?? []).map((row) => row.created_at).filter(Boolean),
+      ...(projectResult.data ?? []).map((row: any) => row.updated_at).filter(Boolean),
+      ...(attachmentResult.data ?? []).map((row: any) => row.updated_at).filter(Boolean),
+      ...(sessionResult.data ?? []).map((row: any) => row.created_at).filter(Boolean),
       profileResult.data?.updated_at,
     ].filter(Boolean) as string[];
     setRemoteUpdatedAt(timestamps.sort().at(-1) ?? null);
     setRemoteLoaded(true);
     setNuvemStatus('synced');
-    setAuthMessage('Your plots arrived intact from the cloud.');
   }
 
   async function pushLocalState() {
@@ -313,7 +316,6 @@ export function useCloudSync(
       break_minutes: project.breakMinutes,
       streak: project.streak,
       last_completion_date: project.lastCompletionDate,
-      session_outcome: project.sessionOutcome,
       reminder_enabled: project.reminderEnabled,
       reminder_time: project.reminderTime,
       last_reminder_date: project.lastReminderDate,
@@ -323,6 +325,7 @@ export function useCloudSync(
       archived: project.archived,
       restart_mode: project.restartMode,
       restart_checks: project.restartChecks,
+      session_outcome: project.sessionOutcome || null,
     }));
     const attachmentRows = state.projects.flatMap((project) =>
       project.attachments.map((attachment, index) => ({
@@ -348,7 +351,7 @@ export function useCloudSync(
       outcome: entry.outcome,
       note: entry.note,
       restart_cue: entry.restartCue,
-      used_restart_mode: entry.usedRecomeçoMode,
+      used_restart_mode: entry.usedRestartMode,
     }));
 
     const [existingProjetos, existingSessões, existingAnexos] = await Promise.all([
@@ -360,7 +363,6 @@ export function useCloudSync(
     const lookupError = existingProjetos.error ?? existingSessões.error ?? existingAnexos.error;
     if (lookupError) {
       setNuvemStatus('error');
-      setAuthMessage('Failed to overwrite cloud before sync started.');
       return;
     }
 
@@ -368,7 +370,6 @@ export function useCloudSync(
       const { error } = await supabase.from('projects').upsert(projectRows, { onConflict: 'user_id,project_id' });
       if (error) {
         setNuvemStatus('error');
-        setAuthMessage('Failed to overwrite cloud when saving projects.');
         return;
       }
     }
@@ -376,7 +377,6 @@ export function useCloudSync(
       const { error } = await supabase.from('sessions').upsert(sessionRows, { onConflict: 'user_id,client_session_id' });
       if (error) {
         setNuvemStatus('error');
-        setAuthMessage('Failed to overwrite cloud when saving sessions.');
         return;
       }
     }
@@ -384,53 +384,33 @@ export function useCloudSync(
       const { error } = await supabase.from('attachments').upsert(attachmentRows, { onConflict: 'user_id,project_id,attachment_id' });
       if (error) {
         setNuvemStatus('error');
-        setAuthMessage('Nuvem overwrite failed while saving anexos.');
         return;
       }
     }
 
     const staleProjectIds = (existingProjetos.data ?? [])
-      .map((row) => String(row.project_id))
-      .filter((id) => !projectRows.some((row) => row.project_id === id));
+      .map((row: any) => String(row.project_id))
+      .filter((id: any) => !projectRows.some((row: any) => row.project_id === id));
     if (staleProjectIds.length) {
-      const { error } = await supabase.from('projects').delete().eq('user_id', session.user.id).in('project_id', staleProjectIds);
-      if (error) {
-        setNuvemStatus('error');
-        setAuthMessage('Failed to overwrite cloud when cleaning projects.');
-        return;
-      }
+      await supabase.from('projects').delete().eq('user_id', session.user.id).in('project_id', staleProjectIds);
     }
 
     const staleSessionIds = (existingSessões.data ?? [])
-      .map((row) => String(row.client_session_id))
-      .filter((id) => !sessionRows.some((row) => row.client_session_id === id));
+      .map((row: any) => String(row.client_session_id))
+      .filter((id: any) => !sessionRows.some((row: any) => row.client_session_id === id));
     if (staleSessionIds.length) {
-      const { error } = await supabase.from('sessions').delete().eq('user_id', session.user.id).in('client_session_id', staleSessionIds);
-      if (error) {
-        setNuvemStatus('error');
-        setAuthMessage('Failed to overwrite cloud when cleaning sessions.');
-        return;
-      }
+      await supabase.from('sessions').delete().eq('user_id', session.user.id).in('client_session_id', staleSessionIds);
     }
 
     const staleAnexoIds = (existingAnexos.data ?? [])
-      .map((row) => String(row.attachment_id))
-      .filter((id) => !attachmentRows.some((row) => row.attachment_id === id));
+      .map((row: any) => String(row.attachment_id))
+      .filter((id: any) => !attachmentRows.some((row: any) => row.attachment_id === id));
     if (staleAnexoIds.length) {
-      const { error } = await supabase.from('attachments').delete().eq('user_id', session.user.id).in('attachment_id', staleAnexoIds);
-      if (error) {
-        setNuvemStatus('error');
-        setAuthMessage('Nuvem overwrite failed while cleaning anexos.');
-        return;
-      }
+      await supabase.from('attachments').delete().eq('user_id', session.user.id).in('attachment_id', staleAnexoIds);
     }
+
     if (profile) {
-      const { error } = await supabase.from('profiles').update({ active_project_id: state.activeProjectId }).eq('user_id', session.user.id);
-      if (error) {
-        setNuvemStatus('error');
-        setAuthMessage('Failed to overwrite cloud when saving active project.');
-        return;
-      }
+      await supabase.from('profiles').update({ active_project_id: state.activeProjectId }).eq('user_id', session.user.id);
     }
 
     lastSyncedStateRef.current = nextSyncState;
@@ -438,9 +418,7 @@ export function useCloudSync(
     setRemoteUpdatedAt(new Date().toISOString());
     setRemoteLoaded(true);
     setNuvemStatus('synced');
-    setAuthMessage('Everything carved locally is now loaded into the normalized cloud tables.');
   }
-
 
   return {
     cloudStatus, setNuvemStatus,

@@ -1,11 +1,11 @@
-// @ts-nocheck
 import { useState, useEffect } from 'react';
+import { Session } from '@supabase/supabase-js';
 import type { Profile, AuthView } from '../types';
 
 export function useAuth(
   supabase: any,
   hasSupabaseConfig: boolean,
-  createProfile: any
+  createProfile: (userId: string, timezone: string) => Profile
 ) {
   const [session, setSession] = useState<Session | null>(null);
   const [authView, setAuthView] = useState<AuthView>('sign-in');
@@ -25,13 +25,13 @@ export function useAuth(
       return;
     }
 
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(({ data }: any) => {
       setSession(data.session ?? null);
     });
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    } = supabase.auth.onAuthStateChange((_event: string, nextSession: Session | null) => {
       if (_event === 'PASSWORD_RECOVERY') {
         setAuthView('recovery');
         setAuthMessage('Reset link accepted. Enter a new password within the app.');
@@ -41,10 +41,6 @@ export function useAuth(
       }
       setSession(nextSession);
       if (!nextSession) {
-        setRemoteLoaded(false);
-        setRemoteSnapshot(null);
-        setRemoteUpdatedAt(null);
-        setNuvemStatus('local');
         setProfile(null);
         setProfileLoaded(false);
         setSenhaMessage('');
@@ -52,7 +48,7 @@ export function useAuth(
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [hasSupabaseConfig, supabase]);
 
   useEffect(() => {
     if (!session?.user || !hasSupabaseConfig || !supabase) {
@@ -98,7 +94,7 @@ export function useAuth(
     return () => {
       cancelled = true;
     };
-  }, [session?.user?.id]);
+  }, [session?.user?.id, hasSupabaseConfig, supabase, createProfile]);
 
   useEffect(() => {
     if (!profileLoaded || !profile || !session?.user || !supabase) {
@@ -114,7 +110,7 @@ export function useAuth(
       setProfileMessage('Profile settings sealed in the cloud.');
     }, 600);
     return () => window.clearTimeout(timer);
-  }, [profile, profileLoaded, session?.user?.id]);
+  }, [profile, profileLoaded, session?.user?.id, supabase]);
 
   async function signInWithPassword() {
     if (!supabase || !authEmail.trim() || !authPassword) {
@@ -124,7 +120,7 @@ export function useAuth(
       email: authEmail.trim(),
       password: authPassword,
     });
-    setAuthMessage(error ? error.message : 'Logado..');
+    setAuthMessage(error ? error.message : 'Logged in.');
   }
 
   async function signUpWithPassword() {
@@ -145,7 +141,7 @@ export function useAuth(
     }
     setAuthMessage(
       data.session
-        ? 'Conta montada e login feito.'
+        ? 'Account created and logged in.'
         : 'Account created. Check your email if the project requires confirmation before login.',
     );
     setAuthView('sign-in');
@@ -178,8 +174,8 @@ export function useAuth(
       setSenhaMessage(error.message);
       return;
     }
-    setSenhaMessage('Senha nova no gatilho.');
-    setAuthMessage('Senha nova no gatilho.');
+    setSenhaMessage('New password set.');
+    setAuthMessage('New password set.');
     setAuthPassword('');
     setAuthPasswordConfirm('');
     if (authView === 'recovery') {
@@ -198,7 +194,6 @@ export function useAuth(
     setSenhaMessage('');
     setAuthView('sign-in');
   }
-
 
   return {
     session, setSession, authView, setAuthView, authEmail, setAuthEmail,

@@ -1,22 +1,18 @@
-// @ts-nocheck
 import { useState, useEffect, useCallback } from 'react';
-import type { Project, SessionRecord } from '../types';
+import type { Project, SessionRecord, AppState } from '../types';
+import { ritualCheckDefaults, restartCheckDefaults } from '../constants';
+import { getTodayKey, getTimeKey, getDayDiff } from '../utils/date';
+import { createSessionId } from '../utils/storage';
 
 export function useTimer(
   activeProject: Project | undefined,
   updateProject: (updater: (project: Project) => Project) => void,
-  state: any,
-  setState: any,
+  state: AppState,
+  setState: React.Dispatch<React.SetStateAction<AppState>>,
   sessionNote: string,
   restartCue: string,
-  setSessionNote: any,
-  setRestartCue: any,
-  getTodayKey: any,
-  getTimeKey: any,
-  getDayDiff: any,
-  createSessionId: any,
-  ritualCheckDefaults: any,
-  restartCheckDefaults: any
+  setSessionNote: (val: string) => void,
+  setRestartCue: (val: string) => void,
 ) {
   const [mode, setMode] = useState<'idle' | 'sprint' | 'break'>('idle');
   const [secondsLeft, setSecondsLeft] = useState(15 * 60);
@@ -90,7 +86,7 @@ export function useTimer(
       energy: state.energy,
       focus: state.focus,
       goal: currentGoal,
-      outcome: activeProject.sessionOutcome,
+      outcome: activeProject.sessionOutcome || 'drafted',
       projectId: activeProject.id,
       note: sessionNote.trim(),
       restartCue: restartCue.trim(),
@@ -119,15 +115,14 @@ export function useTimer(
     setRestartCue('');
     setMode('idle');
     setSecondsLeft(activeProject.sprintMinutes * 60);
-  }, [activeProject, mode, secondsLeft, state.mood, state.energy, state.focus, sessionNote, restartCue, setState, setSessionNote, setRestartCue, getTodayKey, getTimeKey, getDayDiff, createSessionId, ritualCheckDefaults, restartCheckDefaults]);
+  }, [activeProject, mode, secondsLeft, state.mood, state.energy, state.focus, sessionNote, restartCue, setState, setSessionNote, setRestartCue]);
 
   const activateRestartMode = useCallback(() => {
     if (!activeProject) return;
     updateProject((project) => ({
       ...project,
-      selectedGoal: 'Bater 50 palavras',
-      customGoal: 'Re-enter the manuscript with an ugly paragraph.',
-      sessionOutcome: 'showed-up',
+      selectedGoal: 'Write 50 words',
+      customGoal: 'Re-entry the manuscript with an ugly paragraph.',
       sprintMinutes: 10,
       breakMinutes: 3,
       ritualChecks: ritualCheckDefaults(),
@@ -138,7 +133,7 @@ export function useTimer(
     setRestartCue('Which hook is the easiest to pull on your next start?');
     setMode('idle');
     setSecondsLeft(10 * 60);
-  }, [activeProject, updateProject, setSessionNote, setRestartCue, ritualCheckDefaults, restartCheckDefaults]);
+  }, [activeProject, updateProject, setSessionNote, setRestartCue]);
 
   const formatTime = useCallback((totalSeconds: number) => {
     const minutes = Math.floor(totalSeconds / 60)
@@ -149,7 +144,6 @@ export function useTimer(
       .padStart(2, '0');
     return `${minutes}:${seconds}`;
   }, []);
-
 
   return {
     mode, setMode, secondsLeft, setSecondsLeft,

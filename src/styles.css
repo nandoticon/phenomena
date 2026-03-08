@@ -89,9 +89,10 @@ a {
 }
 
 .shell {
-  width: min(1200px, calc(100% - 5vw));
+  width: min(1200px, calc(100% - 32px));
   margin: 0 auto;
   padding: clamp(24px, 4vw, 56px) 0 60px;
+  box-sizing: border-box;
 }
 
 .shell.theme-embers {
@@ -169,31 +170,61 @@ a {
 @media (max-width: 900px) {
   .hero {
     flex-direction: column;
-    padding: 24px 20px;
-    gap: 16px;
-    margin-bottom: 16px;
+    padding: 12px 10px !important;
+    gap: 8px !important;
+    margin-bottom: 8px !important;
     text-align: center;
+    align-items: center !important;
+  }
+
+  .hero .eyebrow {
+    display: none;
   }
 
   .hero h1 {
-    font-size: 1.8rem;
-    margin-bottom: 8px;
+    font-size: 1.25rem !important;
+    margin: 2px 0 !important;
+    letter-spacing: -0.01em;
   }
 
   .lede {
-    font-size: 0.9rem;
-    line-height: 1.4;
+    font-size: 0.78rem !important;
+    line-height: 1.25 !important;
     max-width: 100%;
+    margin-bottom: 2px !important;
+    opacity: 0.85;
   }
 
   .hero-stats {
-    grid-template-columns: repeat(2, 1fr) !important;
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
     width: 100%;
-    gap: 8px !important;
+    gap: 4px !important;
+    min-width: 0 !important;
+    flex: none !important;
   }
 
-  .hero-stats> :first-child {
-    grid-column: 1 / -1;
+  .hero-stats>div,
+  .stat-card {
+    padding: 6px 4px !important;
+    text-align: center;
+    border-radius: 12px !important;
+    background: var(--surface-soft);
+    border: 1px solid var(--panel-border);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 0;
+    height: auto !important;
+  }
+
+  .hero-stats .summary-value {
+    font-size: 0.95rem !important;
+  }
+
+  .hero-stats .summary-label {
+    font-size: 0.65rem !important;
+    margin-bottom: 0 !important;
   }
 }
 
@@ -211,6 +242,16 @@ a {
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
   flex: 0 1 500px;
+}
+
+.stat-card {
+  padding: 16px;
+  border-radius: 20px;
+  background: var(--surface-soft);
+  border: 1px solid var(--panel-border);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .hero-compact {
@@ -240,6 +281,9 @@ a {
   border-radius: 20px;
   border: 1px solid var(--panel-border);
   background: var(--surface-soft);
+  box-sizing: border-box;
+  max-width: 100%;
+  word-break: break-word;
 }
 
 .hero-stats div,
@@ -404,12 +448,56 @@ a {
 }
 
 .workspace-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid var(--panel-border);
+  padding: 12px 24px calc(12px + env(safe-area-inset-bottom));
+  z-index: 100;
   display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 24px;
+  justify-content: center;
   align-items: center;
+  margin-bottom: 0;
 }
+
+.nav-content {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  width: 100%;
+  max-width: 600px;
+  gap: 8px;
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 16px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  flex: 1;
+}
+
+.nav-item.active {
+  color: var(--text);
+  background: var(--surface-active, var(--surface-soft));
+}
+
+.nav-item:hover {
+  color: var(--text);
+}
+
 
 .nav-tabs,
 .theme-toggle {
@@ -967,30 +1055,12 @@ a {
     align-items: stretch;
   }
 
-  .workspace-nav {
-    flex-direction: column;
-    align-items: stretch;
-    margin: 0 0 24px;
-    padding: 0;
-    gap: 16px;
-    /* Removed sticky as requested */
-  }
-
   .nav-tabs {
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: min(400px, calc(100% - 32px));
-    background: rgba(18, 16, 24, 0.85);
-    backdrop-filter: blur(20px) saturate(200%);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 32px;
-    padding: 8px;
-    z-index: 1000;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+    display: flex;
     justify-content: space-around;
+    padding: 8px;
     padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    width: 100%;
   }
 
   .nav-tabs .nav-pill {
@@ -1001,6 +1071,8 @@ a {
     padding: 10px 4px !important;
     background: transparent !important;
     border: none !important;
+    min-width: 0;
+    /* fixes horizontal overflow */
   }
 
   .nav-tabs .nav-pill.active {
@@ -1024,6 +1096,7 @@ a {
 
   .nav-pill {
     min-width: 110px;
+    max-width: 100%;
   }
 
   .hero h1 {
@@ -1061,10 +1134,6 @@ a {
   .archive-item,
   .summary-card {
     padding: 14px;
-  }
-
-  .workspace-nav {
-    top: 6px;
   }
 }
 
@@ -1272,9 +1341,15 @@ body:not(.theme-light) .panel h2 {
   animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+.app-container {
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
+}
+
 .two-column-layout {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr));
   gap: 24px;
   align-items: start;
 }
@@ -1282,11 +1357,57 @@ body:not(.theme-light) .panel h2 {
 @media (max-width: 900px) {
   .two-column-layout {
     grid-template-columns: 1fr;
+    gap: 16px;
   }
 }
 
 .wide-panel {
   width: 100%;
+}
+
+/* --- Skeleton Loading System --- */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg,
+      var(--surface-soft) 25%,
+      var(--surface-active) 37%,
+      var(--surface-soft) 63%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 4px;
+  border: none !important;
+}
+
+.skeleton-text {
+  height: 1em;
+  width: 100%;
+  margin-bottom: 0.5em;
+}
+
+.skeleton-circle {
+  border-radius: 50%;
+}
+
+.skeleton-rect {
+  width: 100%;
+  height: 100%;
+}
+
+.skeleton-card {
+  height: 120px;
+  border-radius: 24px;
+  background: var(--surface-soft);
+  overflow: hidden;
+  position: relative;
 }
 
 /* --- Universal Animations --- */
