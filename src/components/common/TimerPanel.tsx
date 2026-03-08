@@ -1,8 +1,9 @@
 import React from 'react';
-import { Play, RotateCcw, Check, Clock, Target } from 'lucide-react';
+import { Play, RotateCcw, Check, Clock, Target, Pause, Square } from 'lucide-react';
 
 export function TimerPanel({
   activeProject, mode, secondsLeft, formatTime, readyToStart,
+  isPaused, togglePause,
   startSprint, resetTimer, completeSession, updateProject,
   setSecondsLeft, goalLibrary
 }: any) {
@@ -34,7 +35,9 @@ export function TimerPanel({
 
       <div className={`timer-shell ${mode === 'sprint' ? 'is-running' : ''}`} style={{ minHeight: 'clamp(220px, 40vh, 340px)', padding: 'clamp(24px, 4vw, 40px)', borderRadius: '24px' }}>
         <div className={`timer-face ${mode}`} style={{ minHeight: 'clamp(140px, 24vh, 220px)' }}>
-          <span style={{ fontSize: '1.05rem', marginBottom: '8px', fontWeight: 600, letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--muted)' }}>{mode === 'break' ? 'Paused' : mode === 'sprint' ? 'Focusing' : activeProject.restartMode ? 'Restart Ready' : 'Ready'}</span>
+          <span style={{ fontSize: '1.05rem', marginBottom: '8px', fontWeight: 600, letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--muted)' }}>
+            {isPaused ? 'Paused' : mode === 'break' ? 'Break' : mode === 'sprint' ? 'Focusing' : activeProject.restartMode ? 'Restart Ready' : 'Ready'}
+          </span>
           <strong style={{ fontSize: 'clamp(4rem, 12vw, 7rem)', lineHeight: 1, letterSpacing: '-2px' }}>{formatTime(secondsLeft)}</strong>
         </div>
         <div className="timer-controls">
@@ -67,9 +70,28 @@ export function TimerPanel({
           </label>
         </div>
         <div className="button-row">
-          <button className="primary" disabled={!readyToStart || mode === 'sprint'} onClick={startSprint} type="button" style={{ padding: '16px 20px', fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '8px' }}><Play size={18} /> {activeProject.restartMode ? 'Initiate Return' : 'Start Focus'}</button>
-          <button className="ghost" onClick={resetTimer} type="button" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><RotateCcw size={16} /> Reset Timer</button>
-          <button className="success" onClick={completeSession} type="button" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Check size={18} /> Complete Session</button>
+          {mode === 'idle' ? (
+            <>
+              <button className="primary" disabled={!readyToStart} onClick={startSprint} type="button" style={{ padding: '16px 20px', fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Play size={18} /> {activeProject.restartMode ? 'Initiate Return' : 'Start Focus'}
+              </button>
+              <button className="ghost" onClick={resetTimer} type="button" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <RotateCcw size={16} /> Reset
+              </button>
+            </>
+          ) : (
+            <>
+              <button className="ghost" onClick={togglePause} type="button" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {isPaused ? <><Play size={18} /> Resume</> : <><Pause size={18} /> Pause</>}
+              </button>
+              <button className="ghost" onClick={resetTimer} type="button" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent)' }}>
+                <Square size={16} /> Stop
+              </button>
+            </>
+          )}
+          <button className="success" onClick={completeSession} type="button" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Check size={18} /> Complete
+          </button>
         </div>
       </div>
     </article>

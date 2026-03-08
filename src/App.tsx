@@ -6,7 +6,7 @@ import { useTimer } from './hooks/useTimer';
 import { useCloudSync } from './hooks/useCloudSync';
 
 import {
-  Mood, Energy, Focus, SessionResultado,
+  Mood, Energy, Focus, SessionResultado, SessionRecord,
   CueTheme, WorkspaceView, UiTheme, Project, Profile,
   AppState, ChartPoint, ChartRange, ComparisonMetric,
   HistoryProjectFilter, HistoryOutcomeFilter, NotificationState
@@ -41,6 +41,8 @@ export default function App() {
   const { session, authView, setAuthView, authEmail, setAuthEmail, authPassword, setAuthPassword, authPasswordConfirm, setAuthPasswordConfirm, authMessage, setAuthMessage, passwordMessage, setSenhaMessage, profile, setProfile, profileLoaded, setProfileLoaded, profileMessage, setProfileMessage, signInWithPassword, signUpWithPassword, sendPasswordReset, updatePassword, signOut } = useAuth(supabase, hasSupabaseConfig, createProfile);
   const { cloudStatus, setNuvemStatus, remoteLoaded, setRemoteLoaded, remoteSnapshot, setRemoteSnapshot, remoteUpdatedAt, setRemoteUpdatedAt, normalizedMessage, setNormalizedMessage, pullCloudState, pushLocalState } = useCloudSync(supabase, hasSupabaseConfig, session, state, setState, hydrated, profile);
   const [notificationState, setNotificationState] = useState<NotificationState>('default');
+  const [toast, setToast] = useState<{ message: string; visible: boolean; type?: 'info' | 'success' } | null>(null);
+  const [lastDeletedSession, setLastDeletedSession] = useState<SessionRecord | null>(null);
   const [importMessage, setImportMessage] = useState('');
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectNote, setNewProjectNote] = useState('');
@@ -109,6 +111,42 @@ export default function App() {
     }));
   }, [updateProject]);
 
+  const deleteSession = useCallback((sessionId: string) => {
+    setState((current) => {
+      const sessionToDelete = current.sessions.find(s => s.id === sessionId);
+      if (sessionToDelete) setLastDeletedSession(sessionToDelete);
+
+      return {
+        ...current,
+        sessions: current.sessions.filter((s) => s.id !== sessionId),
+      };
+    });
+    setToast({ message: 'Session deleted', visible: true });
+    setTimeout(() => setToast(current => current?.message === 'Session deleted' ? { ...current, visible: false } : current), 5000);
+  }, []);
+
+  const restoreSession = useCallback(() => {
+    if (!lastDeletedSession) return;
+    setState((current) => ({
+      ...current,
+      sessions: [...current.sessions, lastDeletedSession].sort((a, b) => {
+        const dateA = new Date(`${a.date}T${a.timeOfDay}`).getTime();
+        const dateB = new Date(`${b.date}T${b.timeOfDay}`).getTime();
+        return dateA - dateB; // Sort back to chronological or just push
+      }).slice(-240),
+    }));
+    setLastDeletedSession(null);
+    setToast({ message: 'Session restored', visible: true, type: 'success' });
+    setTimeout(() => setToast(current => current?.message === 'Session restored' ? { ...current, visible: false } : current), 3000);
+  }, [lastDeletedSession]);
+
+  const updateSession = useCallback((sessionId: string, updates: Partial<SessionRecord>) => {
+    setState((current) => ({
+      ...current,
+      sessions: current.sessions.map((s) => (s.id === sessionId ? { ...s, ...updates } : s)),
+    }));
+  }, []);
+
   const updateProfile = useCallback((key: string, value: any) => {
     setProfile((current) => (current ? { ...current, [key]: value } : current));
   }, [setProfile]);
@@ -133,7 +171,7 @@ export default function App() {
     }
   }, []);
 
-  const { mode, setMode, secondsLeft, setSecondsLeft, startSprint, resetTimer, completeSession, activateRestartMode, formatTime } = useTimer(
+  const { mode, setMode, isPaused, togglePause, secondsLeft, setSecondsLeft, startSprint, resetTimer, completeSession, activateRestartMode, formatTime } = useTimer(
     state.projects.find((project) => project.id === state.activeProjectId) ?? state.projects[0],
     updateProject, state, setState, sessionNote, restartCue, setSessionNote, setRestartCue
   );
@@ -281,6 +319,8 @@ export default function App() {
               mode={mode}
               secondsLeft={secondsLeft}
               setSecondsLeft={setSecondsLeft}
+              isPaused={isPaused}
+              togglePause={togglePause}
               startSprint={startSprint}
               resetTimer={resetTimer}
               completeSession={completeSession}
@@ -298,6 +338,11 @@ export default function App() {
               getRestartState={getRestartState}
               outcomeLabel={outcomeLabel}
               getCrossProjectSummary={getCrossProjectSummary}
+              deleteSession={deleteSession}
+              updateSession={updateSession}
+              toast={toast}
+              setToast={setToast}
+              restoreSession={restoreSession}
             />
           )}
 

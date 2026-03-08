@@ -1,7 +1,11 @@
 import React from 'react';
-import { FileText, Activity } from 'lucide-react';
+import { FileText, Activity, Pencil, Trash2 } from 'lucide-react';
 
-export function SessionPanel({ outcomeOptions, activeProject, updateProject, state, setState, coaching, recoveryMessage, streakLabel, recentSessions, outcomeLabel }: any) {
+export function SessionPanel({
+  outcomeOptions, activeProject, updateProject, state, setState,
+  coaching, recoveryMessage, streakLabel, recentSessions,
+  outcomeLabel, onEditSession, onDeleteSession
+}: any) {
   return (
     <article className="card panel session-panel workspace-today">
       <div className="panel-head">
@@ -76,10 +80,40 @@ export function SessionPanel({ outcomeOptions, activeProject, updateProject, sta
           ) : (
             <ul style={{ margin: 0 }}>
               {recentSessions.slice(0, 3).map((entry: any, index: number) => (
-                <li key={`${entry.date}-${index}`} style={{ borderTop: index === 0 ? 'none' : '1px solid var(--panel-border)', padding: '12px 0' }}>
-                  <span style={{ color: 'var(--text)' }}>{entry.date}</span>
-                  <span>{entry.minutes} min</span>
-                  <span>{outcomeLabel(entry.outcome)}</span>
+                <li key={`${entry.date}-${index}`} style={{
+                  borderTop: index === 0 ? 'none' : '1px solid var(--panel-border)',
+                  padding: '16px 0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  justifyContent: 'space-between'
+                }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <strong style={{ color: 'var(--text)', fontSize: '0.95rem' }}>{entry.date}</strong>
+                      <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>• {entry.minutes} min</span>
+                    </div>
+                    <span style={{ color: 'var(--secondary)', fontSize: '0.8rem', letterSpacing: '0.5px', textTransform: 'uppercase' }}>{outcomeLabel(entry.outcome)}</span>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      className="ghost"
+                      onClick={() => onEditSession(entry)}
+                      style={{ padding: '8px', borderRadius: '10px', background: 'var(--surface-soft)' }}
+                      title="Edit session"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button
+                      className="ghost"
+                      onClick={() => onDeleteSession(entry.id)}
+                      style={{ padding: '8px', borderRadius: '10px', background: 'var(--surface-soft)', color: 'var(--accent)' }}
+                      title="Delete session"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>

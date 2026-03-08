@@ -1,4 +1,5 @@
 import React, { memo, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { BellRing } from 'lucide-react';
 import { MobileAccordion } from '../common/MobileAccordion';
 import { TimerPanel } from '../common/TimerPanel';
@@ -14,8 +15,21 @@ function TodayViewComponent({
   formatTime, updateProject, sessionNote, setSessionNote,
   restartCue, setRestartCue, getStreakLabel, projectGoal,
   getCoachingInsight, getRecoveryMessage, getRestartState, outcomeLabel,
-  getCrossProjectSummary
+  getCrossProjectSummary, deleteSession, updateSession,
+  isPaused, togglePause, toast, setToast, restoreSession
 }: any) {
+  const [editingSession, setEditingSession] = React.useState<any>(null);
+  const [sessionToDelete, setSessionToDelete] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (editingSession) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [editingSession]);
+
   const recentSessions = useMemo(() => {
     return state.sessions
       .filter((s: any) => s.projectId === activeProject?.id)
@@ -56,12 +70,8 @@ function TodayViewComponent({
   }, [activeProject?.ritualChecks]);
 
   const readyToStart = useMemo(() => {
-    if (!activeProject) return false;
-    if (activeProject.restartMode) {
-      return Object.values(activeProject.restartChecks).every(Boolean);
-    }
-    return ritualPronto;
-  }, [activeProject, ritualPronto]);
+    return !!activeProject;
+  }, [activeProject]);
 
   const toggleRitual = (key: string) => {
     updateProject((p: any) => ({
@@ -120,6 +130,7 @@ function TodayViewComponent({
         <div className="today-main-col">
           <TimerPanel {...{
             activeProject, mode, secondsLeft, formatTime, readyToStart,
+            isPaused, togglePause,
             startSprint, resetTimer, completeSession, updateProject,
             setSecondsLeft, goalLibrary
           }} />
@@ -144,11 +155,106 @@ function TodayViewComponent({
           <MobileAccordion title="Session Log" defaultOpen={false}>
             <SessionPanel {...{
               outcomeOptions, activeProject, updateProject, state, setState,
-              coaching, recoveryMessage, streakLabel, recentSessions, outcomeLabel
+              coaching, recoveryMessage, streakLabel, recentSessions, outcomeLabel,
+              onEditSession: (session: any) => setEditingSession(session),
+              onDeleteSession: (id: string) => setSessionToDelete(id)
             }} />
           </MobileAccordion>
         </div>
       </section>
+
+      {/* Glassmorphism Session Edit Modal */}
+      {editingSession && createPortal(
+        <div className="modal-overlay" onClick={() => setEditingSession(null)}>
+          <div className="modal-content card" onClick={e => e.stopPropagation()}>
+            <div className="panel-head">
+              <h3>Edit Session</h3>
+              <button className="ghost" onClick={() => setEditingSession(null)}>✕</button>
+            </div>
+
+            <label className="input-block">
+              <span>Goal</span>
+              <input
+                type="text"
+                value={editingSession.goal}
+                onChange={e => setEditingSession({ ...editingSession, goal: e.target.value })}
+              />
+            </label>
+
+            <label className="input-block">
+              <span>Minutes</span>
+              <input
+                type="number"
+                value={editingSession.minutes}
+                onChange={e => setEditingSession({ ...editingSession, minutes: Number(e.target.value) })}
+              />
+            </label>
+
+            <label className="input-block" style={{ marginTop: '12px' }}>
+              <span>Notes</span>
+              <textarea
+                className="textarea-block"
+                style={{ width: '100%', minHeight: '100px', background: 'var(--input-bg)', border: '1px solid var(--panel-border)', borderRadius: '14px', padding: '12px', color: 'var(--text)' }}
+                value={editingSession.note}
+                onChange={e => setEditingSession({ ...editingSession, note: e.target.value })}
+              />
+            </label>
+
+            <div className="button-row-modal" style={{ marginTop: '24px', display: 'flex', gap: '12px' }}>
+              <button className="primary" onClick={() => {
+                updateSession(editingSession.id, editingSession);
+                setEditingSession(null);
+              }} style={{ flex: 1 }}>Save Changes</button>
+              <button className="ghost" onClick={() => setEditingSession(null)} style={{ flex: 1 }}>Cancel</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Confirmation Modal for Deletion */}
+      {sessionToDelete && createPortal(
+        <div className="modal-overlay" onClick={() => setSessionToDelete(null)}>
+          <div className="modal-content card" style={{ maxWidth: '400px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+            <div className="panel-head" style={{ justifyContent: 'center' }}>
+              <h3 style={{ margin: 0 }}>Delete Session?</h3>
+            </div>
+
+            <p style={{ color: 'var(--muted)', margin: '16px 0 32px', lineHeight: 1.5 }}>
+              This action cannot be undone. This session will be permanently removed from your history.
+            </p>
+
+            <div className="button-row-modal">
+              <button
+                className="primary"
+                onClick={() => {
+                  deleteSession(sessionToDelete);
+                  setSessionToDelete(null);
+                }}
+                style={{ background: 'var(--accent)', color: '#fff' }}
+              >
+                Yes, Delete
+              </button>
+              <button className="ghost" onClick={() => setSessionToDelete(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Floating Toast Notification */}
+      {toast?.visible && createPortal(
+        <div className={`toast-container ${toast.type || ''}`}>
+          <div className="toast-content">
+            <span className="toast-message">{toast.message}</span>
+            {toast.message === 'Session deleted' && (
+              <button className="toast-action" onClick={restoreSession}>Undo</button>
+            )}
+            <button className="toast-close" onClick={() => setToast({ ...toast, visible: false })}>✕</button>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

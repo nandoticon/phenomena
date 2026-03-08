@@ -15,6 +15,7 @@ export function useTimer(
   setRestartCue: (val: string) => void,
 ) {
   const [mode, setMode] = useState<'idle' | 'sprint' | 'break'>('idle');
+  const [isPaused, setIsPaused] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(15 * 60);
 
   useEffect(() => {
@@ -27,7 +28,7 @@ export function useTimer(
   }, [activeProject, mode]);
 
   useEffect(() => {
-    if (mode === 'idle' || !activeProject) {
+    if (mode === 'idle' || isPaused || !activeProject) {
       return;
     }
 
@@ -36,27 +37,33 @@ export function useTimer(
         if (current <= 1) {
           if (mode === 'sprint') {
             setMode('break');
-            return activeProject.breakMinutes * 60;
+            return (activeProject?.breakMinutes ?? 5) * 60;
           }
           setMode('idle');
-          return activeProject.sprintMinutes * 60;
+          return (activeProject?.sprintMinutes ?? 25) * 60;
         }
         return current - 1;
       });
     }, 1000);
 
     return () => window.clearInterval(timer);
-  }, [activeProject, mode]);
+  }, [activeProject?.id, mode]);
 
   const startSprint = useCallback(() => {
     if (!activeProject) return;
     setMode('sprint');
+    setIsPaused(false);
     setSecondsLeft(activeProject.sprintMinutes * 60);
   }, [activeProject]);
+
+  const togglePause = useCallback(() => {
+    setIsPaused(prev => !prev);
+  }, []);
 
   const resetTimer = useCallback(() => {
     if (!activeProject) return;
     setMode('idle');
+    setIsPaused(false);
     setSecondsLeft(activeProject.sprintMinutes * 60);
   }, [activeProject]);
 
@@ -114,6 +121,7 @@ export function useTimer(
     setSessionNote('');
     setRestartCue('');
     setMode('idle');
+    setIsPaused(false);
     setSecondsLeft(activeProject.sprintMinutes * 60);
   }, [activeProject, mode, secondsLeft, state.mood, state.energy, state.focus, sessionNote, restartCue, setState, setSessionNote, setRestartCue]);
 
@@ -132,6 +140,7 @@ export function useTimer(
     setSessionNote('What served as the spark to come today?');
     setRestartCue('Which hook is the easiest to pull on your next start?');
     setMode('idle');
+    setIsPaused(false);
     setSecondsLeft(10 * 60);
   }, [activeProject, updateProject, setSessionNote, setRestartCue]);
 
@@ -146,7 +155,7 @@ export function useTimer(
   }, []);
 
   return {
-    mode, setMode, secondsLeft, setSecondsLeft,
-    startSprint, resetTimer, completeSession, activateRestartMode, formatTime
+    mode, setMode, isPaused, setIsPaused, secondsLeft, setSecondsLeft,
+    startSprint, togglePause, resetTimer, completeSession, activateRestartMode, formatTime
   };
 }
