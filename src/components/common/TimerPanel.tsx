@@ -17,11 +17,11 @@ export function TimerPanel({
       </div>
 
       {/* Embedded Goal Selection */}
-      <div style={{ marginBottom: '24px', padding: '24px', borderRadius: '24px', background: 'var(--surface-soft)', border: '1px solid var(--panel-border)' }}>
-        <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <strong style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--muted)', letterSpacing: '1px', textTransform: 'uppercase' }}><Target size={14} /> Session Goal</strong>
+      <div style={{ marginBottom: '16px', padding: '16px', borderRadius: '20px', background: 'var(--surface-soft)', border: '1px solid var(--panel-border)' }}>
+        <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <strong style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'var(--muted)', letterSpacing: '1px', textTransform: 'uppercase' }}><Target size={14} /> Session Goal</strong>
         </div>
-        <div className="goal-pills" style={{ marginBottom: '20px' }}>
+        <div className="goal-pills" style={{ marginBottom: '12px' }}>
           {goalLibrary.map((goal: string) => (
             <button className={activeProject.selectedGoal === goal && !activeProject.customGoal ? 'pill active' : 'pill'} key={goal} onClick={() => updateProject((project: any) => ({ ...project, selectedGoal: goal }))} type="button">
               {goal}

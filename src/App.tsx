@@ -115,7 +115,9 @@ export default function App() {
   const deleteSession = useCallback((sessionId: string) => {
     setState((current) => {
       const sessionToDelete = current.sessions.find(s => s.id === sessionId);
-      if (sessionToDelete) setLastDeletedSession(sessionToDelete);
+      if (sessionToDelete) {
+        setLastDeletedSession(sessionToDelete);
+      }
 
       return {
         ...current,
@@ -133,7 +135,7 @@ export default function App() {
       sessions: [...current.sessions, lastDeletedSession].sort((a, b) => {
         const dateA = new Date(`${a.date}T${a.timeOfDay}`).getTime();
         const dateB = new Date(`${b.date}T${b.timeOfDay}`).getTime();
-        return dateA - dateB; // Sort back to chronological or just push
+        return dateA - dateB;
       }).slice(-240),
     }));
     setLastDeletedSession(null);
@@ -146,6 +148,19 @@ export default function App() {
       ...current,
       sessions: current.sessions.map((s) => (s.id === sessionId ? { ...s, ...updates } : s)),
     }));
+  }, []);
+
+  const addSession = useCallback((record: SessionRecord) => {
+    setState((current) => ({
+      ...current,
+      sessions: [...current.sessions, record].sort((a, b) => {
+        const dateA = new Date(`${a.date}T${a.timeOfDay}`).getTime();
+        const dateB = new Date(`${b.date}T${b.timeOfDay}`).getTime();
+        return dateA - dateB;
+      }).slice(-240),
+    }));
+    setToast({ message: 'Session manual entry added', visible: true, type: 'success' });
+    setTimeout(() => setToast(current => current?.message === 'Session manual entry added' ? { ...current, visible: false } : current), 3000);
   }, []);
 
   const updateProfile = useCallback((key: string, value: any) => {
@@ -373,6 +388,7 @@ export default function App() {
               toast={toast}
               setToast={setToast}
               restoreSession={restoreSession}
+              addSession={addSession}
             />
           )}
 
@@ -434,6 +450,12 @@ export default function App() {
               getProjectComparisonSeries={getProjectComparisonSeries}
               outcomeLabel={outcomeLabel}
               projectNameMap={projectNameMap}
+              addSession={addSession}
+              updateSession={updateSession}
+              deleteSession={deleteSession}
+              restoreSession={restoreSession}
+              toast={toast}
+              setToast={setToast}
             />
           )}
 

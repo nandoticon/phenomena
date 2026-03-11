@@ -1,19 +1,29 @@
 import React, { useState } from 'react';
-import { Clock, Search } from 'lucide-react';
+import { Clock, Search, Plus, Pencil, Trash2 } from 'lucide-react';
 
 export function HistoryPanel({
   historyQuery, setHistoryQuery, historyProjectFilter, setHistoryProjectFilter,
   activeProject, historyOutcomeFilter, setHistoryOutcomeFilter, outcomeOptions,
-  filteredHistory, projectNameMap, outcomeLabel
+  filteredHistory, projectNameMap, outcomeLabel,
+  onEditSession, onDeleteSession, onAddSession
 }: any) {
   const [showAll, setShowAll] = useState(false);
 
   return (
     <article className="card panel history-panel" style={{ display: 'flex', flexDirection: 'column' }}>
       <div className="panel-head">
-        <div>
-          <p className="eyebrow"><Clock size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} /> History</p>
-          <h2>Session Logs</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+          <div>
+            <p className="eyebrow"><Clock size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} /> History</p>
+            <h2>Session Logs</h2>
+          </div>
+          <button 
+            className="primary compact" 
+            onClick={onAddSession}
+            style={{ padding: '8px 16px', borderRadius: '12px', fontSize: '0.85rem' }}
+          >
+            <Plus size={16} style={{ marginRight: '6px' }} /> Manual Entry
+          </button>
         </div>
       </div>
 
@@ -70,11 +80,33 @@ export function HistoryPanel({
           <>
             <ul style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '20px' }}>
               {(showAll ? filteredHistory : filteredHistory.slice(0, 50)).map((entry: any, index: number) => (
-                <li className="history-item" key={`${entry.projectId}-${entry.date}-${index}`} style={{ background: 'var(--surface-soft)', borderRadius: '16px', padding: '16px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '12px' }}>
-                    <span className="date-tag" style={{ fontSize: '0.75rem', padding: '4px 10px', background: 'var(--bg)', borderRadius: '8px', color: 'var(--muted)' }}>{entry.date} {entry.time}</span>
-                    <span className="project-tag" style={{ fontSize: '0.75rem', padding: '4px 10px', background: 'var(--accent-soft)', borderRadius: '8px', color: 'var(--accent)' }}>{projectNameMap[entry.projectId] || 'Unknown'}</span>
-                    <span className="outcome-tag" style={{ fontSize: '0.75rem', padding: '4px 10px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', color: 'var(--text)' }}>{outcomeLabel(entry.outcome)}</span>
+                <li className="history-item" key={entry.id || `${entry.projectId}-${entry.date}-${index}`} style={{ background: 'var(--surface-soft)', borderRadius: '16px', padding: '16px', border: '1px solid rgba(255,255,255,0.03)', position: 'relative' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <span className="date-tag" style={{ fontSize: '0.75rem', padding: '4px 10px', background: 'var(--bg)', borderRadius: '8px', color: 'var(--muted)' }}>{entry.date} {entry.timeOfDay}</span>
+                      <span className="project-tag" style={{ fontSize: '0.75rem', padding: '4px 10px', background: 'var(--accent-soft)', borderRadius: '8px', color: 'var(--accent)' }}>{projectNameMap[entry.projectId] || 'Unknown'}</span>
+                      <span className="outcome-tag" style={{ fontSize: '0.75rem', padding: '4px 10px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', color: 'var(--text)' }}>{outcomeLabel(entry.outcome)}</span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--muted)', marginLeft: '4px' }}>{entry.minutes}m</span>
+                    </div>
+
+                    <div className="history-actions" style={{ display: 'flex', gap: '4px' }}>
+                      <button 
+                        className="ghost compact" 
+                        onClick={() => onEditSession(entry)}
+                        title="Edit Session"
+                        style={{ padding: '6px', borderRadius: '8px' }}
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button 
+                        className="ghost compact" 
+                        onClick={() => onDeleteSession(entry.id)}
+                        title="Delete Session"
+                        style={{ padding: '6px', borderRadius: '8px', color: '#ff6b6b' }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                   
                   {entry.goal && (
@@ -113,3 +145,4 @@ export function HistoryPanel({
     </article>
   );
 }
+

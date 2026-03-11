@@ -9,6 +9,8 @@ import { SessionPanel } from '../common/SessionPanel';
 import { goalLibrary, ritualSteps, restartSteps, outcomeOptions } from '../../constants';
 import { getProjectAnalytics } from '../../utils/analytics';
 
+import { getTodayKey, getTimeKey } from '../../utils/date';
+
 function TodayViewComponent({
   activeProject, state, setState, mode, secondsLeft, setSecondsLeft,
   startSprint, resetTimer, completeSession, activateRestartMode,
@@ -16,13 +18,28 @@ function TodayViewComponent({
   restartCue, setRestartCue, getStreakLabel, projectGoal,
   getCoachingInsight, getRecoveryMessage, getRestartState, outcomeLabel,
   getCrossProjectSummary, deleteSession, updateSession,
-  isPaused, togglePause, toast, setToast, restoreSession
+  isPaused, togglePause, toast, setToast, restoreSession, addSession
 }: any) {
   const [editingSession, setEditingSession] = React.useState<any>(null);
   const [sessionToDelete, setSessionToDelete] = React.useState<string | null>(null);
+  const [isAddingSession, setIsAddingSession] = React.useState(false);
+  const [newSession, setNewSession] = React.useState<any>({
+    projectId: activeProject?.id || state.projects[0]?.id,
+    date: getTodayKey(),
+    timeOfDay: getTimeKey(),
+    minutes: 30,
+    goal: '',
+    outcome: 'drafted',
+    mood: 'steady',
+    energy: 'medium',
+    focus: 'usable',
+    note: '',
+    restartCue: '',
+    usedRestartMode: false
+  });
 
   React.useEffect(() => {
-    if (editingSession || sessionToDelete) {
+    if (editingSession || sessionToDelete || isAddingSession) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
@@ -32,6 +49,7 @@ function TodayViewComponent({
       if (e.key === 'Escape') {
         setEditingSession(null);
         setSessionToDelete(null);
+        setIsAddingSession(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -40,7 +58,16 @@ function TodayViewComponent({
       document.body.style.overflow = '';
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [editingSession, sessionToDelete]);
+  }, [editingSession, sessionToDelete, isAddingSession]);
+
+  const handleManualAddSession = () => {
+    if (!newSession.projectId || !newSession.goal) return;
+    addSession({
+      ...newSession,
+      id: crypto.randomUUID()
+    });
+    setIsAddingSession(false);
+  };
 
   const recentSessions = useMemo(() => {
     return state.sessions
@@ -108,7 +135,7 @@ function TodayViewComponent({
 
   return (
     <div className="page-container workspace-today">
-      <header className="hero card">
+      <header className="hero">
         <div className="hero-content">
           <p className="eyebrow" style={{ color: 'var(--accent)' }}>Active Project</p>
           <h1 style={{ margin: '8px 0' }}>{activeProject?.name || 'No Project Selected'}</h1>
@@ -169,11 +196,114 @@ function TodayViewComponent({
               outcomeOptions, activeProject, updateProject, state, setState,
               coaching, recoveryMessage, streakLabel, recentSessions, outcomeLabel,
               onEditSession: (session: any) => setEditingSession(session),
-              onDeleteSession: (id: string) => setSessionToDelete(id)
+              onDeleteSession: (id: string) => setSessionToDelete(id),
+              onAddSession: () => setIsAddingSession(true)
             }} />
           </MobileAccordion>
         </div>
       </section>
+
+      {/* Manual Add Session Modal */}
+      {isAddingSession && createPortal(
+        <div className="modal-overlay" onClick={() => setIsAddingSession(false)}>
+          <div className="modal-content card" style={{ maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
+            <div className="panel-head">
+              <h3>Manual Session Entry</h3>
+              <button className="ghost" onClick={() => setIsAddingSession(false)}>✕</button>
+            </div>
+
+            <div className="modal-scroll-area" style={{ maxHeight: '70vh', overflowY: 'auto', paddingRight: '8px' }}>
+              <label className="input-block">
+                <span>Project</span>
+                <select 
+                  value={newSession.projectId}
+                  onChange={e => setNewSession({ ...newSession, projectId: e.target.value })}
+                  style={{ background: 'var(--input-bg)' }}
+                >
+                  {state.projects.filter((p: any) => !p.archived).map((p: any) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </label>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '12px' }}>
+                <label className="input-block">
+                  <span>Date</span>
+                  <input
+                    type="date"
+                    value={newSession.date}
+                    onChange={e => setNewSession({ ...newSession, date: e.target.value })}
+                  />
+                </label>
+                <label className="input-block">
+                  <span>Time</span>
+                  <input
+                    type="time"
+                    value={newSession.timeOfDay}
+                    onChange={e => setNewSession({ ...newSession, timeOfDay: e.target.value })}
+                  />
+                </label>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '12px' }}>
+                <label className="input-block">
+                  <span>Duration (Minutes)</span>
+                  <input
+                    type="number"
+                    value={newSession.minutes}
+                    onChange={e => setNewSession({ ...newSession, minutes: Number(e.target.value) })}
+                  />
+                </label>
+                <label className="input-block">
+                  <span>Outcome</span>
+                  <select 
+                    value={newSession.outcome}
+                    onChange={e => setNewSession({ ...newSession, outcome: e.target.value })}
+                    style={{ background: 'var(--input-bg)' }}
+                  >
+                    {outcomeOptions.map((opt: any) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              <label className="input-block" style={{ marginTop: '12px' }}>
+                <span>Goal / Target</span>
+                <input
+                  type="text"
+                  placeholder="What was the intention?"
+                  value={newSession.goal}
+                  onChange={e => setNewSession({ ...newSession, goal: e.target.value })}
+                />
+              </label>
+
+              <label className="input-block" style={{ marginTop: '12px' }}>
+                <span>Notes</span>
+                <textarea
+                  placeholder="Reflections from this session..."
+                  style={{ width: '100%', minHeight: '80px', background: 'var(--input-bg)', border: '1px solid var(--panel-border)', borderRadius: '14px', padding: '12px', color: 'var(--text)' }}
+                  value={newSession.note}
+                  onChange={e => setNewSession({ ...newSession, note: e.target.value })}
+                />
+              </label>
+            </div>
+
+            <div className="button-row-modal" style={{ marginTop: '24px', display: 'flex', gap: '12px' }}>
+              <button 
+                className="primary" 
+                onClick={handleManualAddSession} 
+                disabled={!newSession.projectId || !newSession.goal}
+                style={{ flex: 1 }}
+              >
+                Save Session
+              </button>
+              <button className="ghost" onClick={() => setIsAddingSession(false)} style={{ flex: 1 }}>Cancel</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* Glassmorphism Session Edit Modal */}
       {editingSession && createPortal(

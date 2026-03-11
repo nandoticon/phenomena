@@ -8,10 +8,10 @@ export function DashboardBanner({
 }: any) {
   return (
     <article className="card panel dashboard-panel wide-panel">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '20px', marginBottom: '32px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '20px' }}>
         <div>
-          <p className="eyebrow" style={{ color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '6px' }}><Activity size={14} /> Dashboard</p>
-          <h1 style={{ fontSize: 'clamp(1.2rem, 4vw, 1.8rem)', margin: 0 }}>Project Insights</h1>
+          <p className="eyebrow" style={{ color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}><Activity size={14} /> Dashboard</p>
+          <h1 style={{ fontSize: 'clamp(1rem, 3vw, 1.4rem)', margin: 0 }}>Project Insights</h1>
         </div>
 
         <div className="chart-controls" style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>

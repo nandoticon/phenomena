@@ -1,17 +1,27 @@
 import React from 'react';
-import { FileText, Activity, Pencil, Trash2 } from 'lucide-react';
+import { FileText, Activity, Pencil, Trash2, Plus } from 'lucide-react';
 
 export function SessionPanel({
   outcomeOptions, activeProject, updateProject, state, setState,
   coaching, recoveryMessage, streakLabel, recentSessions,
-  outcomeLabel, onEditSession, onDeleteSession
+  outcomeLabel, onEditSession, onDeleteSession, onAddSession
 }: any) {
   return (
     <article className="card panel session-panel workspace-today">
       <div className="panel-head">
-        <div>
-          <p className="eyebrow"><FileText size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} /> Session Log</p>
-          <h2>Session Details</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+          <div>
+            <p className="eyebrow"><FileText size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} /> Session Log</p>
+            <h2>Session Details</h2>
+          </div>
+          <button 
+            className="ghost compact" 
+            onClick={() => onAddSession && onAddSession()}
+            title="Add Manual Entry"
+            style={{ padding: '8px', borderRadius: '10px' }}
+          >
+            <Plus size={18} />
+          </button>
         </div>
       </div>
 
