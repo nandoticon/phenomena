@@ -11,7 +11,7 @@ export function MobileAccordion({ title, defaultOpen = false, children }: any) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  if (!isMobile) return <div className="accordion-desktop-contents">{children}</div>;
+  if (!isMobile) return <>{children}</>;
 
   return (
     <div className={`mobile-accordion ${isOpen ? 'open' : ''}`}>

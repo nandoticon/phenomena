@@ -89,7 +89,7 @@ a {
 }
 
 .shell {
-  width: min(1200px, calc(100% - 32px));
+  width: min(1440px, calc(100% - 32px));
   margin: 0 auto;
   padding: clamp(24px, 4vw, 56px) 0 60px;
   box-sizing: border-box;
@@ -1297,6 +1297,14 @@ body:not(.theme-light) .panel h2 {
   .today-two-column-layout {
     grid-template-columns: 1fr;
   }
+  .hero h1 {
+    font-size: clamp(1.5rem, 8vw, 2.8rem);
+  }
+  .hero .eyebrow {
+    display: block;
+    font-size: 0.7rem;
+    opacity: 0.8;
+  }
 }
 
 
@@ -1409,6 +1417,8 @@ body:not(.theme-light) .panel h2 {
   opacity: 1;
   pointer-events: auto;
 }
+
+/* Clear duplicate transition blocks */
 
 
 /* --- Premium Depth & Texture System --- */
@@ -1622,12 +1632,16 @@ body.theme-light .app-container::before {
 /* --- Visceral Micro-interactions --- */
 .primary,
 .success,
-.danger {
+.danger,
+.ghost,
+.pill,
+.nav-pill,
+.outcome {
   padding: 14px 28px;
   border-radius: 18px;
   font-weight: 600;
   border: none;
-  transition: all 0.4s var(--spring-easing);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s ease, opacity 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.3s var(--spring-easing);
   position: relative;
   overflow: hidden;
 }
@@ -1651,7 +1665,6 @@ body.theme-light .app-container::before {
   background: var(--surface-soft);
   border: 1px solid var(--panel-border);
   color: var(--muted);
-  transition: all 0.4s var(--spring-easing);
 }
 
 .ghost:hover {
@@ -1662,7 +1675,7 @@ body.theme-light .app-container::before {
 }
 
 .nav-pill {
-  transition: all 0.4s var(--spring-easing);
+  border: 1px solid transparent;
 }
 
 .nav-pill:hover {
@@ -1673,6 +1686,27 @@ body.theme-light .app-container::before {
 .nav-pill.active {
   transform: scale(1.1);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.nav-item.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 10px 20px -5px var(--accent-soft);
+}
+
+.nav-item.active svg {
+  filter: drop-shadow(0 0 4px var(--accent));
+}
+
+.nav-item.active::after {
+  content: '';
+  display: block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin: 2px auto 0;
+  animation: fadeIn 0.4s var(--spring-easing);
 }
 
 .sprint-panel,
@@ -1732,32 +1766,7 @@ textarea:focus {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
-.primary:hover,
-.success:hover {
-  transform: translateY(-1px) scale(1.02);
-}
-
-.primary:active,
-.success:active {
-  transform: translateY(0) scale(0.98);
-}
-
-.ghost:hover,
-.pill:hover:not(.active),
-.nav-pill:hover:not(.active),
-.outcome:hover:not(.active) {
-  background: color-mix(in srgb, var(--surface-soft) 80%, var(--text));
-  transform: translateY(-1px);
-}
-
-.primary,
-.success,
-.ghost,
-.pill,
-.nav-pill,
-.outcome {
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s ease, opacity 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-}
+/* transitions and basic hover/active states handled in consolidated block around line 1623 */
 
 .accordion-body {
   animation: fadeIn 0.4s ease both;

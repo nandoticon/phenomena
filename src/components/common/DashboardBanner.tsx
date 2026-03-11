@@ -11,7 +11,7 @@ export function DashboardBanner({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '20px', marginBottom: '32px' }}>
         <div>
           <p className="eyebrow" style={{ color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '6px' }}><Activity size={14} /> Dashboard</p>
-          <h2 style={{ fontSize: '1.8rem' }}>Project Insights</h2>
+          <h1 style={{ fontSize: 'clamp(1.2rem, 4vw, 1.8rem)', margin: 0 }}>Project Insights</h1>
         </div>
 
         <div className="chart-controls" style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
@@ -37,22 +37,21 @@ export function DashboardBanner({
       </div>
 
       <div className="analytics-grid dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '16px' }}>
-        <div className="project-card active" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div className="project-card active">
           <strong style={{ fontSize: '0.9rem', opacity: 0.8 }}>Active Projects</strong>
-          <span style={{ fontSize: '1.8rem', fontWeight: 600, color: 'var(--accent)' }}>{dashboard.activeCount} <span style={{ fontSize: '0.9rem', color: 'var(--text)' }}>projects</span></span>
-          <small>{dashboard.archivedCount} archived</small>
+          <span style={{ fontSize: 'clamp(1.4rem, 4vw, 1.8rem)', fontWeight: 600, color: 'var(--accent)' }}>{dashboard.activeCount} <span style={{ fontSize: '0.85rem', color: 'var(--text)' }}>active</span></span>
         </div>
-        <div className="project-card active" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div className="project-card active">
           <strong style={{ fontSize: '0.9rem', opacity: 0.8 }}>Minutes this week</strong>
-          <span style={{ fontSize: '1.8rem', fontWeight: 600, color: 'var(--secondary)' }}>{dashboard.totalWeeklyMinutes} <span style={{ fontSize: '0.9rem', color: 'var(--text)' }}>minutes</span></span>
+          <span style={{ fontSize: 'clamp(1.4rem, 4vw, 1.8rem)', fontWeight: 600, color: 'var(--secondary)' }}>{dashboard.totalWeeklyMinutes} <span style={{ fontSize: '0.85rem', color: 'var(--text)' }}>min</span></span>
         </div>
-        <div className="project-card active" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div className="project-card active">
           <strong style={{ fontSize: '0.9rem', opacity: 0.8 }}>Longest Streak</strong>
-          <span style={{ fontSize: '1.1rem', fontWeight: 600, display: 'flex', alignItems: 'center', height: '100%' }}>{dashboard.topStreakProject}</span>
+          <span style={{ fontSize: 'clamp(0.9rem, 2.5vw, 1.1rem)', fontWeight: 600 }}>{dashboard.topStreakProject}</span>
         </div>
-        <div className="project-card active" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div className="project-card active">
           <strong style={{ fontSize: '0.9rem', opacity: 0.8 }}>Best Time to Write</strong>
-          <span style={{ fontSize: '1.2rem', fontWeight: 600, display: 'flex', alignItems: 'center', height: '100%' }}>{dashboard.strongestTime}</span>
+          <span style={{ fontSize: 'clamp(1rem, 3vw, 1.2rem)', fontWeight: 600 }}>{dashboard.strongestTime}</span>
         </div>
       </div>
 

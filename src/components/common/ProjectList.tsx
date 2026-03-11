@@ -1,29 +1,61 @@
 import React from 'react';
-import { FolderOpen } from 'lucide-react';
+import { FolderOpen, Plus } from 'lucide-react';
 
 export function ProjectList({ activeProjetos, activeProject, setActiveProject, setMode, setSecondsLeft }: any) {
   return (
     <div className="project-list" style={{ marginBottom: '24px' }}>
-      {activeProjetos?.map((project: any) => (
-        <button
-          className={project.id === activeProject.id ? 'project-card active' : 'project-card'}
-          key={project.id}
-          onClick={() => {
-            setActiveProject(project.id);
-            setMode('idle');
-            setSecondsLeft(project.sprintMinutes * 60);
-          }}
-          type="button"
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <strong style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><FolderOpen size={16} style={{ color: 'var(--muted)' }} /> {project.name}</strong>
-            <span style={{ margin: 0, padding: '4px 8px', background: 'rgba(255, 122, 89, 0.1)', borderRadius: '12px', fontSize: '0.8rem', color: 'var(--accent)' }}>
-              {project.streak} day streak
+      {activeProjetos && activeProjetos.length > 0 ? (
+        activeProjetos.map((project: any) => (
+          <button
+            className={activeProject && project.id === activeProject.id ? 'project-card active' : 'project-card'}
+            key={project.id}
+            onClick={() => {
+              setActiveProject(project.id);
+              setMode('idle');
+              setSecondsLeft(project.sprintMinutes * 60);
+            }}
+            type="button"
+            style={{ textAlign: 'left', width: '100%' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <strong style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.05rem' }}>
+                <FolderOpen size={18} style={{ color: project.id === activeProject?.id ? 'var(--accent)' : 'var(--muted)' }} /> 
+                {project.name}
+              </strong>
+              <span className="streak-pill" style={{ 
+                margin: 0, 
+                padding: '4px 12px', 
+                background: project.id === activeProject?.id ? 'var(--accent)' : 'var(--accent-soft)', 
+                borderRadius: '999px', 
+                fontSize: '0.75rem', 
+                fontWeight: 700,
+                color: project.id === activeProject?.id ? '#fff' : 'var(--accent)',
+                transition: 'all 0.3s ease'
+              }}>
+                {project.streak} DAY STREAK
+              </span>
+            </div>
+            <span style={{ fontSize: '0.9rem', color: 'var(--muted)', display: 'block', lineHeight: 1.4 }}>
+              {project.note || 'No notes yet. Start focus to build your momentum.'}
             </span>
-          </div>
-          <span>{project.note || 'No notes yet. Click to select a goal.'}</span>
-        </button>
-      ))}
+          </button>
+        ))
+      ) : (
+        <div className="empty-state" style={{ 
+          padding: '48px 24px', 
+          textAlign: 'center', 
+          background: 'var(--surface-soft)', 
+          borderRadius: '24px', 
+          border: '1px dashed var(--panel-border)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '12px'
+        }}>
+          <Plus size={32} style={{ opacity: 0.2 }} />
+          <p style={{ color: 'var(--muted)', margin: 0 }}>No active projects. Create one below to start your focus journey.</p>
+        </div>
+      )}
     </div>
   );
 }

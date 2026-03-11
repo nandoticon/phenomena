@@ -22,13 +22,25 @@ function TodayViewComponent({
   const [sessionToDelete, setSessionToDelete] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    if (editingSession) {
+    if (editingSession || sessionToDelete) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
     }
-    return () => { document.body.style.overflow = ''; };
-  }, [editingSession]);
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setEditingSession(null);
+        setSessionToDelete(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => { 
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [editingSession, sessionToDelete]);
 
   const recentSessions = useMemo(() => {
     return state.sessions

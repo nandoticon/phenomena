@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { NuvemStatus, AppState, Profile, ProjectAttachment, SessionResultado, Mood, Energy, Focus, CueTheme, Project } from '../types';
 import { ambientPresets, goalLibrary, DEFAULT_PROJECT_ID } from '../constants';
 import { buildStateFromNormalizedTables, serializeSyncState } from '../utils/storage';

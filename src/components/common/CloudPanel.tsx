@@ -13,7 +13,7 @@ export function CloudPanel({
       <div className="panel-head">
         <div>
           <p className="eyebrow" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Server size={14} /> Cloud Sync</p>
-          <h2>Account & Devices</h2>
+          <h1 style={{ fontSize: '1.4rem', margin: 0 }}>Account & Devices</h1>
         </div>
         {hasSupabaseConfig && session && (
           <div style={{ padding: '4px 12px', background: 'rgba(167, 224, 104, 0.1)', borderRadius: '12px', border: '1px solid var(--success)', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -109,9 +109,14 @@ export function CloudPanel({
           ) : null}
         </div>
       ) : (
-        <div className="status" style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '32px', textAlign: 'center' }}>
-          <span style={{ fontSize: '1.2rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>Supabase Not Configured</span>
-          Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` to your environment variables to enable cloud sync.
+        <div className="status" style={{ background: 'var(--surface-soft)', padding: '40px 24px', textAlign: 'center', borderRadius: '24px', border: '1px dashed var(--panel-border)' }}>
+          <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'center' }}>
+            <Server size={48} style={{ opacity: 0.2, color: 'var(--accent)' }} />
+          </div>
+          <h3 style={{ fontSize: '1.1rem', margin: '0 0 12px', color: 'var(--text)' }}>Cloud Sync Unavailable</h3>
+          <p style={{ margin: 0, color: 'var(--muted)', fontSize: '0.9rem', lineHeight: 1.6 }}>
+            Connect to Supabase to enable real-time backup and multi-device sync. Add your environment variables to get started.
+          </p>
         </div>
       )}
     </article>

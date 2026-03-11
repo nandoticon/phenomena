@@ -14,6 +14,14 @@ export function LineChart({
   activePoint?: ChartPoint | null;
   onPointFocus?: (point: ChartPoint) => void;
 }) {
+  if (points.length === 0) {
+    return (
+      <div className="chart-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '200px', borderStyle: 'dashed', opacity: 0.6 }}>
+        <p style={{ fontStyle: 'italic' }}>No session data available for this range.</p>
+      </div>
+    );
+  }
+
   const max = Math.max(...points.map((point) => point.value), 1);
   const path = points
     .map((point, index) => {
@@ -27,9 +35,16 @@ export function LineChart({
     <div className="chart-card">
       <div className="chart-head">
         <strong>{title}</strong>
-        <span>Pico {max} min</span>
+        <span>Peak {max} min</span>
       </div>
-      <svg className="line-chart" viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label={title}>
+      <div style={{ position: 'relative', width: '100%', height: '220px' }}>
+        <svg
+          style={{ width: '100%', height: '100%', overflow: 'visible' }}
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          role="graphics-document"
+          aria-label={`Graph of ${title} showing trends over time`}
+        >
         <path className="line-chart-area" d={`${path} L 100 100 L 0 100 Z`} />
         <path className="line-chart-path" d={path} style={{ stroke: accent }} />
         {points.map((point, index) => {
@@ -45,6 +60,8 @@ export function LineChart({
               onMouseEnter={() => onPointFocus?.(point)}
               onFocus={() => onPointFocus?.(point)}
               tabIndex={0}
+              role="button"
+              aria-label={`${point.label}: ${point.value} minutes`}
             />
           );
         })}
@@ -65,7 +82,8 @@ export function LineChart({
         ))}
       </div>
     </div>
-  );
+  </div>
+);
 }
 
 export function BarChart({
@@ -81,6 +99,14 @@ export function BarChart({
   activePoint?: ChartPoint | null;
   onPointFocus?: (point: ChartPoint) => void;
 }) {
+  if (points.length === 0) {
+    return (
+      <div className="chart-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '200px', borderStyle: 'dashed', opacity: 0.6 }}>
+        <p style={{ fontStyle: 'italic' }}>No session data available for this range.</p>
+      </div>
+    );
+  }
+
   const max = Math.max(...points.map((point) => point.value), 1);
   return (
     <div className="chart-card">
@@ -88,7 +114,7 @@ export function BarChart({
         <strong>{title}</strong>
         <span>{points.reduce((sum, point) => sum + point.value, 0)} total</span>
       </div>
-      <div className="bar-chart">
+      <div className="bar-chart" role="graphics-document" aria-label={`Bar chart showing distribution for ${title}`}>
         {points.map((point, index) => (
           <div className="bar-row" key={`${title}-${point.label}-${index}`}>
             <div className="bar-labels">

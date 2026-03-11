@@ -79,7 +79,7 @@ export function SessionPanel({
             <p style={{ color: 'var(--muted)', fontStyle: 'italic' }}>No sessions recorded yet.</p>
           ) : (
             <ul style={{ margin: 0 }}>
-              {recentSessions.slice(0, 3).map((entry: any, index: number) => (
+              {recentSessions.slice(0, 5).map((entry: any, index: number) => (
                 <li key={`${entry.date}-${index}`} style={{
                   borderTop: index === 0 ? 'none' : '1px solid var(--panel-border)',
                   padding: '16px 0',
@@ -88,12 +88,14 @@ export function SessionPanel({
                   gap: '12px',
                   justifyContent: 'space-between'
                 }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                       <strong style={{ color: 'var(--text)', fontSize: '0.95rem' }}>{entry.date}</strong>
                       <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>• {entry.minutes} min</span>
                     </div>
-                    <span style={{ color: 'var(--secondary)', fontSize: '0.8rem', letterSpacing: '0.5px', textTransform: 'uppercase' }}>{outcomeLabel(entry.outcome)}</span>
+                    <span style={{ color: 'var(--accent)', fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.8px', textTransform: 'uppercase', background: 'var(--accent-soft)', padding: '2px 8px', borderRadius: '6px', width: 'fit-content' }}>
+                      {outcomeLabel(entry.outcome)}
+                    </span>
                   </div>
 
                   <div style={{ display: 'flex', gap: '8px' }}>

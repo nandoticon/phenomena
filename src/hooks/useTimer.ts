@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import type { Project, SessionRecord, AppState } from '../types';
 import { ritualCheckDefaults, restartCheckDefaults } from '../constants';
 import { getTodayKey, getTimeKey, getDayDiff } from '../utils/date';
@@ -14,9 +14,18 @@ export function useTimer(
   setSessionNote: (val: string) => void,
   setRestartCue: (val: string) => void,
 ) {
+  const secondsLeftRef = useRef(15 * 60);
   const [mode, setMode] = useState<'idle' | 'sprint' | 'break'>('idle');
   const [isPaused, setIsPaused] = useState(false);
-  const [secondsLeft, setSecondsLeft] = useState(15 * 60);
+  const [secondsLeft, setSecondsLeftState] = useState(15 * 60);
+
+  const setSecondsLeft = useCallback((val: number | ((prev: number) => number)) => {
+    setSecondsLeftState((prev) => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      secondsLeftRef.current = next;
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     if (!activeProject) {
@@ -47,7 +56,7 @@ export function useTimer(
     }, 1000);
 
     return () => window.clearInterval(timer);
-  }, [activeProject?.id, mode]);
+  }, [activeProject?.id, mode, isPaused]);
 
   const startSprint = useCallback(() => {
     if (!activeProject) return;
@@ -81,7 +90,7 @@ export function useTimer(
       nextSequência = getDayDiff(previousDate, today) === 1 ? activeProject.streak + 1 : 1;
     }
 
-    const minutesWorked = mode === 'sprint' ? activeProject.sprintMinutes - Math.floor(secondsLeft / 60) : activeProject.sprintMinutes;
+    const minutesWorked = mode === 'sprint' ? activeProject.sprintMinutes - Math.floor(secondsLeftRef.current / 60) : activeProject.sprintMinutes;
     const currentGoal = activeProject.customGoal.trim() || activeProject.selectedGoal;
 
     const record: SessionRecord = {
@@ -123,7 +132,7 @@ export function useTimer(
     setMode('idle');
     setIsPaused(false);
     setSecondsLeft(activeProject.sprintMinutes * 60);
-  }, [activeProject, mode, secondsLeft, state.mood, state.energy, state.focus, sessionNote, restartCue, setState, setSessionNote, setRestartCue]);
+  }, [activeProject, mode, state.mood, state.energy, state.focus, sessionNote, restartCue, setState, setSessionNote, setRestartCue, setSecondsLeft]);
 
   const activateRestartMode = useCallback(() => {
     if (!activeProject) return;

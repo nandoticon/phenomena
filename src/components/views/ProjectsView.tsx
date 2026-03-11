@@ -22,7 +22,7 @@ function ProjectsViewComponent({
             <div className="panel-head">
               <div>
                 <p className="eyebrow"><Book size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} /> Projects</p>
-                <h2>Active Projects</h2>
+                <h1 style={{ fontSize: '1.4rem', margin: 0 }}>Active Projects</h1>
               </div>
             </div>
 

@@ -29,12 +29,22 @@ export function TimerPanel({
           ))}
         </div>
         <label className="input-block" style={{ padding: 0, background: 'transparent', border: 'none' }}>
-          <input style={{ background: 'var(--input-bg)' }} onChange={(event) => updateProject((project: any) => ({ ...project, customGoal: event.target.value }))} placeholder="Or set a custom goal. Ex: Write the basement scene." type="text" value={activeProject.customGoal} />
+          <input
+            style={{ background: 'var(--input-bg)' }}
+            onChange={(event) => updateProject((project: any) => ({
+              ...project,
+              customGoal: event.target.value,
+              selectedGoal: event.target.value ? '' : project.selectedGoal,
+            }))}
+            placeholder="Or set a custom goal. Ex: Write the basement scene."
+            type="text"
+            value={activeProject.customGoal}
+          />
         </label>
       </div>
 
-      <div className={`timer-shell ${mode === 'sprint' ? 'is-running' : ''}`} style={{ minHeight: 'clamp(220px, 40vh, 340px)', padding: 'clamp(24px, 4vw, 40px)', borderRadius: '24px' }}>
-        <div className={`timer-face ${mode}`} style={{ minHeight: 'clamp(140px, 24vh, 220px)' }}>
+      <div className={`timer-shell ${mode === 'sprint' ? 'is-running' : ''}`}>
+        <div className={`timer-face ${mode}`}>
           <span style={{ fontSize: '1.05rem', marginBottom: '8px', fontWeight: 600, letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--muted)' }}>
             {isPaused ? 'Paused' : mode === 'break' ? 'Break' : mode === 'sprint' ? 'Focusing' : activeProject.restartMode ? 'Restart Ready' : 'Ready'}
           </span>
@@ -89,9 +99,11 @@ export function TimerPanel({
               </button>
             </>
           )}
-          <button className="success" onClick={completeSession} type="button" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Check size={18} /> Complete
-          </button>
+          {(mode === 'sprint' || mode === 'break') && (
+            <button className="success" onClick={completeSession} type="button" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Check size={18} /> Complete
+            </button>
+          )}
         </div>
       </div>
     </article>

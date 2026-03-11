@@ -73,6 +73,7 @@ export default function App() {
       projects: [...current.projects, project],
       activeProjectId: project.id,
     }));
+    setToast({ message: `Project "${newProjectName.trim()}" created!`, type: 'success', visible: true });
     setNewProjectName('');
     setNewProjectNote('');
   }, [newProjectName, newProjectNote, setState]);
@@ -186,6 +187,34 @@ export default function App() {
   const [comparisonMetric, setComparisonMetric] = useState<ComparisonMetric>('minutes');
   const [activeChartPoint, setActiveChartPoint] = useState<ChartPoint | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const exportBackup = useCallback(() => {
+    const json = JSON.stringify(state, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `phenomena-backup-${getTodayKey()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [state]);
+
+  const importBackup = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target?.result as string);
+        setState(parseStoredState(JSON.stringify(parsed)));
+        setImportMessage('Backup restored successfully.');
+        setTimeout(() => setImportMessage(''), 4000);
+      } catch {
+        setImportMessage('Invalid backup file.');
+      }
+    };
+    reader.readAsText(file);
+  }, [setState]);
 
   useEffect(() => {
     const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
@@ -308,11 +337,12 @@ export default function App() {
   }, [state.projects]);
 
   return (
-    <div className={`app-container ${isFullscreen ? 'is-fullscreen' : ''} ${uiTheme === 'light' ? 'theme-light' : 'theme-dark'}`}>
+    <div className={`app-container ${isFullscreen ? 'is-fullscreen' : ''} ${uiTheme === 'light' ? 'theme-light' : 'theme-dark'} ${mode === 'sprint' ? 'focus-dim-bg' : ''}`}>
       <main className={`workspace-main ${isFullscreen ? 'fullscreen-mode' : 'shell'}`} style={{ paddingBottom: 'calc(4rem + env(safe-area-inset-bottom))' }}>
         <Suspense fallback={<TodayViewSkeleton />}>
           {workspaceView === 'today' && (
             <TodayView
+              key="today"
               activeProject={activeProject}
               state={state}
               setState={setState}
@@ -348,6 +378,7 @@ export default function App() {
 
           {workspaceView === 'projects' && (
             <ProjectsView
+              key="projects"
               activeProjetos={activeProjetos}
               activeProject={activeProject}
               setActiveProject={setActiveProject}
@@ -371,9 +402,6 @@ export default function App() {
               ambientPresets={ambientPresets}
               toggleFullscreen={toggleFullscreen}
               isFullscreen={isFullscreen}
-              state={state}
-              setState={setState}
-              fileInputRef={fileInputRef}
               toggleReminder={toggleReminder}
               notificationState={notificationState}
               getReminderStatus={getReminderStatus}
@@ -382,6 +410,7 @@ export default function App() {
 
           {workspaceView === 'insights' && (
             <InsightsView
+              key="insights"
               state={state}
               activeProject={activeProject}
               historySessions={historySessions}
@@ -410,6 +439,7 @@ export default function App() {
 
           {workspaceView === 'account' && (
             <AccountView
+              key="account"
               session={session}
               authView={authView}
               setAuthView={setAuthView}
@@ -452,6 +482,8 @@ export default function App() {
               applyProfileDefaultsToActiveProject={applyProfileDefaultsToActiveProject}
               hasSupabaseConfig={hasSupabaseConfig}
               formatCloudTimestamp={formatCloudTimestamp}
+              exportBackup={exportBackup}
+              importBackup={importBackup}
             />
           )}
         </Suspense>
