@@ -3,6 +3,11 @@ import { outcomeOptions } from '../constants';
 import { getTodayKey, getDayDiff, parseDateKey } from './date';
 import { getTimeBucket } from './formatters';
 
+export interface TrendAnnotation {
+  title: string;
+  detail: string;
+}
+
 export function projectGoal(project: Project): string {
   return project.customGoal.trim() || project.selectedGoal;
 }
@@ -23,7 +28,7 @@ export function getStreakLabel(lastCompletionDate: string | null, streak: number
 
 export function getReminderStatus(notificationState: NotificationState, reminderEnabled: boolean): string {
   if (!reminderEnabled) {
-    return 'Daily alarms disabled.';
+    return 'Daily reminders disabled.';
   }
   if (notificationState === 'unsupported') {
     return 'Browser notifications blocked. Alerts will only show inside the app.';
@@ -117,6 +122,35 @@ export function getProjectAnalytics(project: Project, sessions: SessionRecord[])
     return later ? getDayDiff(session.date, later.date) <= 2 : false;
   }).length;
   const restartRecoveryRate = restartSessions.length ? Math.round((restartRecoveries / restartSessions.length) * 100) : 0;
+  const completionRate = projectSessions.length
+    ? Math.round((projectSessions.filter((session) => session.minutes >= project.sprintMinutes).length / projectSessions.length) * 100)
+    : 0;
+  const recoveryWindows = restartSessions
+    .map((session) => {
+      const later = projectSessions
+        .filter((candidate) => parseDateKey(candidate.date).getTime() > parseDateKey(session.date).getTime())
+        .sort((a, b) => parseDateKey(a.date).getTime() - parseDateKey(b.date).getTime())[0];
+      return later ? getDayDiff(session.date, later.date) : null;
+    })
+    .filter((value): value is number => value !== null);
+  const bestRecoveryWindow = recoveryWindows.length ? `${Math.min(...recoveryWindows)} day${Math.min(...recoveryWindows) === 1 ? '' : 's'}` : 'No recovery window yet';
+  const worstRecoveryWindow = recoveryWindows.length ? `${Math.max(...recoveryWindows)} day${Math.max(...recoveryWindows) === 1 ? '' : 's'}` : 'No recovery window yet';
+  const trendAnnotations: TrendAnnotation[] = [
+    {
+      title: 'Best time',
+      detail: `${bestTime} is the strongest session window.`,
+    },
+    {
+      title: 'Follow-through',
+      detail: `${completionRate}% of sessions reached the planned sprint length.`,
+    },
+    {
+      title: 'Recovery',
+      detail: restartSessions.length
+        ? `Restart mode sessions usually recover in ${bestRecoveryWindow}.`
+        : 'Run a restart-mode session to start tracking recovery windows.',
+    },
+  ];
 
   return {
     bestTime,
@@ -126,10 +160,14 @@ export function getProjectAnalytics(project: Project, sessions: SessionRecord[])
     totalMinutes,
     restartSessions: restartSessions.length,
     restartRecoveryRate,
+    completionRate,
+    bestRecoveryWindow,
+    worstRecoveryWindow,
     streakStability: longestGap === 0 ? 'Stable' : longestGap <= 2 ? 'Shaky' : 'Fragile',
     dominantMoodPattern,
     noteSeed,
     totalSessions: projectSessions.length,
+    trendAnnotations,
   };
 }
 
@@ -146,7 +184,7 @@ export function getCrossProjectSummary(projects: Project[], sessions: SessionRec
     archivedCount: projects.length - activeProjetos.length,
     attachmentCount: getProjectAttachmentCount(projects),
     totalWeeklyMinutes,
-    topStreakProject: topStreakProject?.name ?? 'No active case yet',
+    topStreakProject: topStreakProject?.name ?? 'No active project yet',
     strongestTime,
   };
 }
@@ -219,23 +257,35 @@ export function getMoodSeries(projectId: string, sessions: SessionRecord[], rang
 export function getProjectComparisonSeries(projects: Project[], sessions: SessionRecord[], metric: ComparisonMetric, range: ChartRange): ChartPoint[] {
   return projects
     .filter((project) => !project.archived)
-    .map((project) => ({
-      label: project.name,
-      value:
+    .map((project) => {
+      const projectSessions = filterSessionsByRange(getProjectSessions(project.id, sessions), range);
+      const analytics = getProjectAnalytics(project, sessions);
+      const rangeMinutes = projectSessions.reduce((total, session) => total + session.minutes, 0);
+      const rangeSessions = projectSessions.length;
+      const weeklyMinutes = getWeeklyMinutes(project.id, sessions);
+      const value =
         metric === 'minutes'
-          ? filterSessionsByRange(getProjectSessions(project.id, sessions), range).reduce((total, session) => total + session.minutes, 0)
+          ? rangeMinutes
           : metric === 'weekly'
-            ? getWeeklyMinutes(project.id, sessions)
+            ? weeklyMinutes
             : metric === 'sessions'
-              ? filterSessionsByRange(getProjectSessions(project.id, sessions), range).length
-              : project.streak,
-      note:
+              ? rangeSessions
+              : project.streak;
+      const note =
         metric === 'streak'
-          ? `${project.streak} continuous days`
+          ? `${project.streak} continuous days • recovery window ${analytics.bestRecoveryWindow}`
           : metric === 'sessions'
-            ? `${filterSessionsByRange(getProjectSessions(project.id, sessions), range).length} sessions`
-            : `${getWeeklyMinutes(project.id, sessions)} min this week`,
-    }))
+            ? `${rangeSessions} sessions • ${analytics.completionRate}% on-plan`
+            : metric === 'weekly'
+              ? `${weeklyMinutes} min this week • strongest at ${analytics.bestTime}`
+              : `${rangeMinutes} min in range • ${analytics.completionRate}% on-plan`;
+
+      return {
+        label: project.name,
+        value,
+        note,
+      };
+    })
     .sort((a, b) => b.value - a.value)
     .slice(0, 6);
 }

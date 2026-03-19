@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
-export function MobileAccordion({ title, defaultOpen = false, children }: any) {
+interface MobileAccordionProps {
+  title: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}
+
+export function MobileAccordion({ title, defaultOpen = false, children }: MobileAccordionProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth <= 900 : false);
 

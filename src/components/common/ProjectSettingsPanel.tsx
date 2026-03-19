@@ -1,7 +1,15 @@
 import React from 'react';
 import { Edit3, Archive } from 'lucide-react';
+import type { Project } from '../../types';
 
-export function ProjectSettingsPanel({ activeProjetos, activeProject, updateProject, archiveActiveProject }: any) {
+interface ProjectSettingsPanelProps {
+  activeProjetos: Project[];
+  activeProject: Project;
+  updateProject: (updater: (project: Project) => Project) => void;
+  archiveActiveProject: () => void;
+}
+
+export function ProjectSettingsPanel({ activeProjetos, activeProject, updateProject, archiveActiveProject }: ProjectSettingsPanelProps) {
   return (
     <div style={{ background: 'var(--surface-soft)', padding: '20px', borderRadius: '20px', border: '1px solid var(--panel-border)' }}>
       <div className="panel-head" style={{ marginBottom: '16px' }}>
@@ -13,11 +21,11 @@ export function ProjectSettingsPanel({ activeProjetos, activeProject, updateProj
 
       <label className="input-block" style={{ padding: 0, marginBottom: '16px', background: 'transparent', border: 'none' }}>
         <span style={{ marginBottom: '8px' }}>Project Name</span>
-        <input style={{ background: 'var(--input-bg)' }} onChange={(event) => updateProject((project: any) => ({ ...project, name: event.target.value || project.name }))} value={activeProject.name} type="text" />
+        <input style={{ background: 'var(--input-bg)' }} onChange={(event) => updateProject((project) => ({ ...project, name: event.target.value || project.name }))} value={activeProject.name} type="text" />
       </label>
       <label className="input-block" style={{ padding: 0, background: 'transparent', border: 'none' }}>
         <span style={{ marginBottom: '8px' }}>Project Note</span>
-        <input style={{ background: 'var(--input-bg)' }} onChange={(event) => updateProject((project: any) => ({ ...project, note: event.target.value }))} value={activeProject.note} type="text" placeholder="Short description or context..." />
+        <input style={{ background: 'var(--input-bg)' }} onChange={(event) => updateProject((project) => ({ ...project, note: event.target.value }))} value={activeProject.note} type="text" placeholder="Short description or context" />
       </label>
     </div>
   );

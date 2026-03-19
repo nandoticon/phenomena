@@ -1,13 +1,53 @@
 import React from 'react';
 import { Server, Cloud, Shield } from 'lucide-react';
+import { summarizeState } from '../../utils/sync';
+import type { Session } from '@supabase/supabase-js';
+import type { AppState, NuvemStatus, Project, SyncQueueState } from '../../types';
+import type { SyncConflict } from '../../utils/sync';
+
+interface CloudPanelProps {
+  hasSupabaseConfig: boolean;
+  session: Session | null;
+  formatCloudTimestamp: (value: string | null) => string;
+  remoteUpdatedAt: string | null;
+  cloudStatus: NuvemStatus;
+  authView: 'sign-in' | 'sign-up' | 'forgot-password' | 'recovery';
+  setAuthView: (value: 'sign-in' | 'sign-up' | 'forgot-password' | 'recovery') => void;
+  authEmail: string;
+  setAuthEmail: React.Dispatch<React.SetStateAction<string>>;
+  authPassword: string;
+  setAuthPassword: React.Dispatch<React.SetStateAction<string>>;
+  authPasswordConfirm: string;
+  setAuthPasswordConfirm: React.Dispatch<React.SetStateAction<string>>;
+  signInWithPassword: () => void;
+  signUpWithPassword: () => void;
+  sendPasswordReset: () => void;
+  updatePassword: () => void;
+  signOut: () => void;
+  authMessage: string;
+  remoteSnapshot: AppState | null;
+  getProjectAttachmentCount: (projects: Project[]) => number;
+  normalizedMessage: string;
+  state: AppState;
+  syncConflict: SyncConflict | null;
+  syncQueue: SyncQueueState;
+  pullCloudState: () => void;
+  pushLocalState: () => void;
+  replaceCloudWithLocal: () => void;
+}
 
 export function CloudPanel({
-  hasSupabaseConfig, session, formatCloudTimestamp, remoteUpdatedAt,
+  hasSupabaseConfig, session, formatCloudTimestamp, remoteUpdatedAt, cloudStatus,
   authView, setAuthView, authEmail, setAuthEmail, authPassword, setAuthPassword,
   authPasswordConfirm, setAuthPasswordConfirm, signInWithPassword, signUpWithPassword,
   sendPasswordReset, updatePassword, signOut, authMessage, remoteSnapshot,
-  getProjectAttachmentCount, normalizedMessage
-}: any) {
+  getProjectAttachmentCount, normalizedMessage, state, syncConflict, syncQueue, pullCloudState,
+  pushLocalState, replaceCloudWithLocal
+}: CloudPanelProps) {
+  const localSummary = summarizeState(state);
+  const cloudSummary = summarizeState(remoteSnapshot);
+  const hasPendingChanges = syncQueue?.pending;
+
   return (
     <article className="card panel auth-panel">
       <div className="panel-head">
@@ -92,7 +132,7 @@ export function CloudPanel({
             </div>
           )}
 
-          {authMessage ? <div className="status ready" style={{ background: 'rgba(255, 122, 89, 0.1)', color: 'var(--accent)', border: '1px solid rgba(255, 122, 89, 0.4)' }}>{authMessage}</div> : null}
+          {authMessage ? <div className="status ready" role="status" aria-live="polite" aria-atomic="true" style={{ background: 'rgba(255, 122, 89, 0.1)', color: 'var(--accent)', border: '1px solid rgba(255, 122, 89, 0.4)' }}>{authMessage}</div> : null}
 
           {session && remoteSnapshot ? (
             <div className="coach-note muted" style={{ borderLeft: '3px solid var(--secondary)' }}>
@@ -105,6 +145,46 @@ export function CloudPanel({
             <div className="coach-note muted" style={{ borderLeft: '3px solid var(--muted)' }}>
               <strong style={{ color: 'var(--text)' }}>Sync Log</strong>
               <p style={{ marginTop: '8px' }}>{normalizedMessage}</p>
+            </div>
+          ) : null}
+
+          {session ? (
+            <div className="coach-note" style={{ borderLeft: '3px solid var(--accent)', background: 'var(--surface-soft)' }}>
+              <strong style={{ color: 'var(--text)', display: 'block', marginBottom: '8px' }}>Recovery Path</strong>
+              <p style={{ marginTop: 0, marginBottom: '12px', color: 'var(--muted)', lineHeight: 1.5 }}>
+                Local changes are merged safely by default. If the cloud and local copy drift apart, use the buttons below to choose the source of truth.
+              </p>
+              <div style={{ display: 'grid', gap: '10px', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                  <span>Local: {localSummary ? `${localSummary.projects} projects, ${localSummary.sessions} sessions, ${localSummary.attachments} attachments` : 'Unavailable'}</span>
+                  <span>Cloud: {cloudSummary ? `${cloudSummary.projects} projects, ${cloudSummary.sessions} sessions, ${cloudSummary.attachments} attachments` : 'Empty'}</span>
+                </div>
+              {syncConflict ? (
+                <div className="status error" role="alert" aria-live="assertive" aria-atomic="true" style={{ margin: 0, border: '1px solid rgba(255, 122, 89, 0.35)' }}>
+                  {syncConflict.message}
+                </div>
+              ) : null}
+              {hasPendingChanges ? (
+                <div className={`status ${cloudStatus === 'offline' ? 'error' : 'ready'}`} role="status" aria-live="polite" aria-atomic="true" style={{ margin: 0, border: '1px solid rgba(255, 122, 89, 0.25)' }}>
+                  <strong style={{ display: 'block', marginBottom: '4px' }}>
+                    {cloudStatus === 'offline' ? 'Offline queue active' : 'Pending cloud sync'}
+                  </strong>
+                  <p style={{ margin: 0, lineHeight: 1.5 }}>
+                    {cloudStatus === 'offline'
+                      ? 'Your changes are saved locally and will sync when the connection returns.'
+                      : 'Your latest changes are saved locally and waiting for the next sync attempt.'}
+                  </p>
+                  <p style={{ margin: '8px 0 0', fontSize: '0.85rem', color: 'var(--muted)' }}>
+                    Attempts: {syncQueue.attempts}. {syncQueue.lastError ? `Last error: ${syncQueue.lastError}` : 'No error reported.'}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+            <div className="button-row" style={{ display: 'grid', gap: '10px' }}>
+              <button className="ghost" onClick={pullCloudState} type="button">Use cloud copy</button>
+              <button className="primary" onClick={pushLocalState} type="button">Merge local changes</button>
+              <button className="ghost" onClick={replaceCloudWithLocal} type="button" style={{ border: '1px solid rgba(255, 122, 89, 0.35)' }}>Replace cloud with local</button>
+              </div>
             </div>
           ) : null}
         </div>

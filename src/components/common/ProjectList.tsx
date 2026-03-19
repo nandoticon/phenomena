@@ -1,11 +1,20 @@
 import React from 'react';
 import { FolderOpen, Plus } from 'lucide-react';
+import type { Project } from '../../types';
 
-export function ProjectList({ activeProjetos, activeProject, setActiveProject, setMode, setSecondsLeft }: any) {
+interface ProjectListProps {
+  activeProjetos: Project[];
+  activeProject: Project | undefined;
+  setActiveProject: (projectId: string) => void;
+  setMode: (mode: 'idle' | 'sprint' | 'break') => void;
+  setSecondsLeft: (value: number) => void;
+}
+
+export function ProjectList({ activeProjetos, activeProject, setActiveProject, setMode, setSecondsLeft }: ProjectListProps) {
   return (
     <div className="project-list" style={{ marginBottom: '24px' }}>
       {activeProjetos && activeProjetos.length > 0 ? (
-        activeProjetos.map((project: any) => (
+        activeProjetos.map((project) => (
           <button
             className={activeProject && project.id === activeProject.id ? 'project-card active' : 'project-card'}
             key={project.id}
@@ -36,7 +45,7 @@ export function ProjectList({ activeProjetos, activeProject, setActiveProject, s
               </span>
             </div>
             <span style={{ fontSize: '0.9rem', color: 'var(--muted)', display: 'block', lineHeight: 1.4 }}>
-              {project.note || 'No notes yet. Start focus to build your momentum.'}
+              {project.note || 'No notes yet. Add one to capture this project’s direction.'}
             </span>
           </button>
         ))
@@ -53,7 +62,7 @@ export function ProjectList({ activeProjetos, activeProject, setActiveProject, s
           gap: '12px'
         }}>
           <Plus size={32} style={{ opacity: 0.2 }} />
-          <p style={{ color: 'var(--muted)', margin: 0 }}>No active projects. Create one below to start your focus journey.</p>
+          <p style={{ color: 'var(--muted)', margin: 0 }}>No active projects yet. Create one below to begin.</p>
         </div>
       )}
     </div>

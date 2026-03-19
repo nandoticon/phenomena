@@ -1,7 +1,16 @@
 import React from 'react';
 import { Plus } from 'lucide-react';
+import type { Dispatch, SetStateAction } from 'react';
 
-export function NewProjectPanel({ createNewProject, newProjectName, setNewProjectName, newProjectNote, setNewProjectNote }: any) {
+interface NewProjectPanelProps {
+  createNewProject: () => void;
+  newProjectName: string;
+  setNewProjectName: Dispatch<SetStateAction<string>>;
+  newProjectNote: string;
+  setNewProjectNote: Dispatch<SetStateAction<string>>;
+}
+
+export function NewProjectPanel({ createNewProject, newProjectName, setNewProjectName, newProjectNote, setNewProjectNote }: NewProjectPanelProps) {
   return (
     <div style={{ marginTop: '32px', paddingTop: '24px', borderTop: '1px dashed var(--panel-border)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>

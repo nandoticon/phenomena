@@ -1,12 +1,29 @@
 import React from 'react';
 import { Play, RotateCcw, Check, Clock, Target, Pause, Square } from 'lucide-react';
+import type { Project } from '../../types';
+
+interface TimerPanelProps {
+  activeProject: Project;
+  mode: 'idle' | 'sprint' | 'break';
+  secondsLeft: number;
+  formatTime: (seconds: number) => string;
+  readyToStart: boolean;
+  isPaused: boolean;
+  togglePause: () => void;
+  startSprint: () => void;
+  resetTimer: () => void;
+  completeSession: () => void;
+  updateProject: (updater: (project: Project) => Project) => void;
+  setSecondsLeft: (value: number) => void;
+  goalLibrary: string[];
+}
 
 export function TimerPanel({
   activeProject, mode, secondsLeft, formatTime, readyToStart,
   isPaused, togglePause,
   startSprint, resetTimer, completeSession, updateProject,
   setSecondsLeft, goalLibrary
-}: any) {
+}: TimerPanelProps) {
   return (
     <article className="card panel sprint-panel workspace-today">
       <div className="panel-head">
@@ -22,8 +39,8 @@ export function TimerPanel({
           <strong style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'var(--muted)', letterSpacing: '1px', textTransform: 'uppercase' }}><Target size={14} /> Session Goal</strong>
         </div>
         <div className="goal-pills" style={{ marginBottom: '12px' }}>
-          {goalLibrary.map((goal: string) => (
-            <button className={activeProject.selectedGoal === goal && !activeProject.customGoal ? 'pill active' : 'pill'} key={goal} onClick={() => updateProject((project: any) => ({ ...project, selectedGoal: goal }))} type="button">
+          {goalLibrary.map((goal) => (
+            <button className={activeProject.selectedGoal === goal && !activeProject.customGoal ? 'pill active' : 'pill'} key={goal} onClick={() => updateProject((project) => ({ ...project, selectedGoal: goal }))} type="button">
               {goal}
             </button>
           ))}
@@ -31,7 +48,7 @@ export function TimerPanel({
         <label className="input-block" style={{ padding: 0, background: 'transparent', border: 'none' }}>
           <input
             style={{ background: 'var(--input-bg)' }}
-            onChange={(event) => updateProject((project: any) => ({
+            onChange={(event) => updateProject((project) => ({
               ...project,
               customGoal: event.target.value,
               selectedGoal: event.target.value ? '' : project.selectedGoal,
@@ -55,7 +72,7 @@ export function TimerPanel({
             <span style={{ marginBottom: '8px', color: 'var(--text)' }}>Focus Duration</span>
             <select style={{ background: 'var(--input-bg)' }} onChange={(event) => {
               const minutes = Number(event.target.value);
-              updateProject((project: any) => ({ ...project, sprintMinutes: minutes }));
+              updateProject((project) => ({ ...project, sprintMinutes: minutes }));
               if (mode === 'idle') {
                 setSecondsLeft(minutes * 60);
               }
@@ -72,7 +89,7 @@ export function TimerPanel({
           </label>
           <label style={{ padding: 0, background: 'transparent', border: 'none' }}>
             <span style={{ marginBottom: '8px', color: 'var(--text)' }}>Break Duration</span>
-            <select style={{ background: 'var(--input-bg)' }} onChange={(event) => updateProject((project: any) => ({ ...project, breakMinutes: Number(event.target.value) }))} value={activeProject.breakMinutes}>
+            <select style={{ background: 'var(--input-bg)' }} onChange={(event) => updateProject((project) => ({ ...project, breakMinutes: Number(event.target.value) }))} value={activeProject.breakMinutes}>
               <option value={3}>3 min</option>
               <option value={5}>5 min</option>
               <option value={8}>8 min</option>

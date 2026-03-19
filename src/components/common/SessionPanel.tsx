@@ -1,11 +1,29 @@
 import React from 'react';
 import { FileText, Activity, Pencil, Trash2, Plus } from 'lucide-react';
+import type { AppState, Project, SessionRecord } from '../../types';
+import { outcomeOptions } from '../../constants';
+
+interface SessionPanelProps {
+  outcomeOptions: typeof outcomeOptions;
+  activeProject: Project | undefined;
+  updateProject: (updater: (project: Project) => Project) => void;
+  state: AppState;
+  setState: React.Dispatch<React.SetStateAction<AppState>>;
+  coaching: { message: string; evidence: string };
+  recoveryMessage: string;
+  streakLabel: string;
+  recentSessions: SessionRecord[];
+  outcomeLabel: (outcome: SessionRecord['outcome']) => string;
+  onEditSession: (session: SessionRecord) => void;
+  onDeleteSession: (sessionId: string) => void;
+  onAddSession?: () => void;
+}
 
 export function SessionPanel({
   outcomeOptions, activeProject, updateProject, state, setState,
   coaching, recoveryMessage, streakLabel, recentSessions,
   outcomeLabel, onEditSession, onDeleteSession, onAddSession
-}: any) {
+}: SessionPanelProps) {
   return (
     <article className="card panel session-panel workspace-today">
       <div className="panel-head">
@@ -26,10 +44,10 @@ export function SessionPanel({
       </div>
 
       <div style={{ marginBottom: '24px' }}>
-        <h3 style={{ fontSize: '0.95rem', color: 'var(--muted)', margin: '0 0 14px' }}>What did you accomplish today?</h3>
+        <h3 style={{ fontSize: '0.95rem', color: 'var(--muted)', margin: '0 0 14px' }}>What did you accomplish in this session?</h3>
         <div className="outcome-grid">
-          {outcomeOptions.map((option: any) => (
-            <button className={activeProject.sessionOutcome === option.value ? 'outcome active' : 'outcome'} key={option.value} onClick={() => updateProject((project: any) => ({ ...project, sessionOutcome: option.value }))} type="button">
+          {outcomeOptions.map((option) => (
+            <button className={activeProject?.sessionOutcome === option.value ? 'outcome active' : 'outcome'} key={option.value} onClick={() => updateProject((project) => ({ ...project, sessionOutcome: option.value }))} type="button">
               <strong>{option.label}</strong>
               <span style={{ fontSize: '0.85rem' }}>{option.detail}</span>
             </button>
@@ -38,11 +56,11 @@ export function SessionPanel({
       </div>
 
       <div style={{ marginBottom: '24px', padding: '20px', borderRadius: '20px', background: 'var(--surface-soft)', border: '1px solid var(--panel-border)' }}>
-        <h3 style={{ fontSize: '0.95rem', color: 'var(--muted)', margin: '0 0 14px', display: 'flex', alignItems: 'center', gap: '6px' }}><Activity size={16} /> Current State</h3>
+        <h3 style={{ fontSize: '0.95rem', color: 'var(--muted)', margin: '0 0 14px', display: 'flex', alignItems: 'center', gap: '6px' }}><Activity size={16} /> Current Focus</h3>
         <div className="selectors" style={{ gap: '16px' }}>
           <label style={{ padding: 0, background: 'transparent', border: 'none', flex: 1 }}>
             <span style={{ marginBottom: '8px' }}>Mood</span>
-            <select style={{ background: 'var(--input-bg)' }} onChange={(event) => setState((current: any) => ({ ...current, mood: event.target.value }))} value={state.mood}>
+            <select style={{ background: 'var(--input-bg)' }} onChange={(event) => setState((current) => ({ ...current, mood: event.target.value as AppState['mood'] }))} value={state.mood}>
               <option value="foggy">Foggy</option>
               <option value="steady">Steady</option>
               <option value="restless">Restless</option>
@@ -51,7 +69,7 @@ export function SessionPanel({
           </label>
           <label style={{ padding: 0, background: 'transparent', border: 'none', flex: 1 }}>
             <span style={{ marginBottom: '8px' }}>Energy</span>
-            <select style={{ background: 'var(--input-bg)' }} onChange={(event) => setState((current: any) => ({ ...current, energy: event.target.value }))} value={state.energy}>
+            <select style={{ background: 'var(--input-bg)' }} onChange={(event) => setState((current) => ({ ...current, energy: event.target.value as AppState['energy'] }))} value={state.energy}>
               <option value="low">Low</option>
               <option value="medium">Medium</option>
               <option value="high">High</option>
@@ -59,7 +77,7 @@ export function SessionPanel({
           </label>
           <label style={{ padding: 0, background: 'transparent', border: 'none', flex: 1 }}>
             <span style={{ marginBottom: '8px' }}>Focus</span>
-            <select style={{ background: 'var(--input-bg)' }} onChange={(event) => setState((current: any) => ({ ...current, focus: event.target.value }))} value={state.focus}>
+            <select style={{ background: 'var(--input-bg)' }} onChange={(event) => setState((current) => ({ ...current, focus: event.target.value as AppState['focus'] }))} value={state.focus}>
               <option value="scattered">Scattered</option>
               <option value="usable">Usable</option>
               <option value="sharp">Sharp</option>
@@ -68,7 +86,7 @@ export function SessionPanel({
         </div>
 
         <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--panel-border)', lineHeight: 1.5 }}>
-          <strong style={{ color: 'var(--secondary)', display: 'block', marginBottom: '4px' }}>System Analysis:</strong>
+          <strong style={{ color: 'var(--secondary)', display: 'block', marginBottom: '4px' }}>Focus Snapshot:</strong>
           <span style={{ color: 'var(--text)', fontSize: '0.95rem', fontStyle: 'italic' }}>"{coaching.message}"</span>
           {recoveryMessage && (
             <div style={{ marginTop: '12px', padding: '12px', background: 'rgba(255, 122, 89, 0.08)', borderRadius: '12px', border: '1px solid rgba(255, 122, 89, 0.15)' }}>
@@ -81,7 +99,7 @@ export function SessionPanel({
 
       <div>
         <h3 style={{ fontSize: '0.95rem', color: 'var(--text)', margin: '0 0 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          Current Streak
+          Session Rhythm
           <span style={{ color: 'var(--success)', fontWeight: 'bold' }}>{streakLabel}</span>
         </h3>
         <div className="session-log" style={{ border: 'none', padding: 0, background: 'transparent' }}>
@@ -89,7 +107,7 @@ export function SessionPanel({
             <p style={{ color: 'var(--muted)', fontStyle: 'italic' }}>No sessions recorded yet.</p>
           ) : (
             <ul style={{ margin: 0 }}>
-              {recentSessions.slice(0, 5).map((entry: any, index: number) => (
+              {recentSessions.slice(0, 5).map((entry, index: number) => (
                 <li key={`${entry.date}-${index}`} style={{
                   borderTop: index === 0 ? 'none' : '1px solid var(--panel-border)',
                   padding: '16px 0',

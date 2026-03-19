@@ -1,6 +1,7 @@
-import { AppState, Project, SessionRecord, LegacyAppState, ProjectAttachment, CueTheme, Mood, Energy, Focus, SessionResultado } from '../types';
+import { AppState, Project, SessionRecord, LegacyAppState, ProjectAttachment, CueTheme, Mood, Energy, Focus, SessionResultado, BackupManifest, BackupPreview, AttachmentRow, ProjectRow, SessionRow } from '../types';
 import { DEFAULT_PROJECT_ID, goalLibrary, ambientPresets, restartCheckDefaults, ritualCheckDefaults } from '../constants';
 import { getTodayKey, parseDateKey, getDayDiff } from './date';
+import { normalizeProject, normalizeSession as normalizeSessionRecord, normalizeAttachment } from './validation';
 
 export function createProject(id: string, name: string, note: string, defaults?: Partial<Pick<Project, 'sprintMinutes' | 'breakMinutes'>>): Project {
   return {
@@ -28,21 +29,7 @@ export function createProject(id: string, name: string, note: string, defaults?:
 }
 
 export function normalizeSession(session: Partial<SessionRecord>, fallbackProjectId: string): SessionRecord {
-  return {
-    id: session.id ?? `session-${session.projectId ?? fallbackProjectId}-${session.date ?? getTodayKey()}-${session.timeOfDay ?? '19:00'}-${session.minutes ?? 10}-${Math.random().toString(36).slice(2, 6)}`,
-    date: session.date ?? getTodayKey(),
-    timeOfDay: session.timeOfDay ?? '19:00',
-    minutes: session.minutes ?? 10,
-    mood: session.mood ?? 'steady',
-    energy: session.energy ?? 'medium',
-    focus: session.focus ?? 'usable',
-    goal: session.goal ?? 'Write 50 words',
-    outcome: session.outcome ?? 'drafted',
-    projectId: session.projectId ?? fallbackProjectId,
-    note: session.note ?? '',
-    restartCue: session.restartCue ?? '',
-    usedRestartMode: session.usedRestartMode ?? false,
-  };
+  return normalizeSessionRecord(session, fallbackProjectId);
 }
 
 export function createSessionId(projectId: string): string {
@@ -57,29 +44,67 @@ export function serializeSyncState(state: AppState): string {
   });
 }
 
+export function createBackupManifest(state: AppState, name: string): BackupManifest {
+  return {
+    format: 'phenomena-backup-v2',
+    name,
+    exportedAt: new Date().toISOString(),
+    summary: {
+      projects: state.projects.length,
+      sessions: state.sessions.length,
+      attachments: state.projects.reduce((count, project) => count + project.attachments.length, 0),
+    },
+    state,
+  };
+}
+
+export function parseBackupPreview(raw: string | null): BackupPreview | null {
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<BackupManifest> & { state?: unknown };
+    if (parsed.format === 'phenomena-backup-v2' && parsed.state && typeof parsed.state === 'object') {
+      const state = parseStoredState(JSON.stringify(parsed.state));
+      return {
+        name: typeof parsed.name === 'string' && parsed.name.trim() ? parsed.name : 'Phenomena Backup',
+        exportedAt: typeof parsed.exportedAt === 'string' ? parsed.exportedAt : null,
+        summary: {
+          projects: parsed.summary?.projects ?? state.projects.length,
+          sessions: parsed.summary?.sessions ?? state.sessions.length,
+          attachments: parsed.summary?.attachments ?? state.projects.reduce((count, project) => count + project.attachments.length, 0),
+        },
+        state,
+        format: parsed.format,
+      };
+    }
+
+    const state = parseStoredState(raw);
+    return {
+      name: 'Legacy Phenomena Backup',
+      exportedAt: null,
+      summary: {
+        projects: state.projects.length,
+        sessions: state.sessions.length,
+        attachments: state.projects.reduce((count, project) => count + project.attachments.length, 0),
+      },
+      state,
+      format: 'legacy',
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function hydrateProject(project: Partial<Project>, fallbackId: string, fallbackName: string, fallbackNote: string): Project {
   const base = createProject(project.id || fallbackId, project.name || fallbackName, project.note || fallbackNote);
-  return {
-    ...base,
-    ...project,
-    attachments: Array.isArray(project.attachments)
-      ? project.attachments
-        .filter((attachment): attachment is ProjectAttachment => Boolean(attachment?.id && attachment?.label && attachment?.url))
-      : base.attachments,
-    ritualChecks: {
-      ...base.ritualChecks,
-      ...project.ritualChecks,
-    },
-    restartChecks: {
-      ...base.restartChecks,
-      ...project.restartChecks,
-    },
-  };
+  return normalizeProject(project, base);
 }
 
 export const defaultState: AppState = {
   activeProjectId: DEFAULT_PROJECT_ID,
-  projects: [createProject(DEFAULT_PROJECT_ID, 'Main Project', 'Your primary focus at the moment.')],
+  projects: [createProject(DEFAULT_PROJECT_ID, 'Primary Project', 'Your primary focus at the moment.')],
   sessions: [],
   mood: 'steady',
   energy: 'medium',
@@ -96,7 +121,7 @@ export function parseStoredState(raw: string | null): AppState {
 
     if (Array.isArray(parsed.projects)) {
       const projects = parsed.projects.map((project, index) =>
-        hydrateProject(project, `project-${index + 1}`, `Case ${index + 1}`, ''),
+        hydrateProject(project, `project-${index + 1}`, `Project ${index + 1}`, ''),
       );
       const activeCandidates = projects.filter((project) => !project.archived);
       const activeProjectId = activeCandidates.some((project) => project.id === parsed.activeProjectId)
@@ -116,7 +141,7 @@ export function parseStoredState(raw: string | null): AppState {
     const migratedProject = hydrateProject(
       {
         id: DEFAULT_PROJECT_ID,
-        name: 'Main Project',
+        name: 'Primary Project',
         note: 'Imported from your previous configuration.',
         selectedGoal: parsed.selectedGoal ?? goalLibrary[0],
         customGoal: parsed.customGoal ?? '',
@@ -130,7 +155,7 @@ export function parseStoredState(raw: string | null): AppState {
         ritualChecks: parsed.ritualChecks,
       },
       DEFAULT_PROJECT_ID,
-      'Main Project',
+      'Primary Project',
       'Imported from your previous configuration.',
     );
 
@@ -147,10 +172,43 @@ export function parseStoredState(raw: string | null): AppState {
   }
 }
 
+export function parseImportedState(raw: string | null): AppState | null {
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const looksLikeStructuredState = Array.isArray(parsed.projects) || Array.isArray(parsed.sessions);
+    const looksLikeLegacyState =
+      'selectedGoal' in parsed ||
+      'customGoal' in parsed ||
+      'sprintMinutes' in parsed ||
+      'breakMinutes' in parsed ||
+      'streak' in parsed ||
+      'lastCompletionDate' in parsed ||
+      'reminderEnabled' in parsed ||
+      'reminderTime' in parsed ||
+      'lastReminderDate' in parsed ||
+      'ritualChecks' in parsed ||
+      'mood' in parsed ||
+      'energy' in parsed ||
+      'focus' in parsed;
+
+    if (!looksLikeStructuredState && !looksLikeLegacyState) {
+      return null;
+    }
+
+    return parseStoredState(raw);
+  } catch {
+    return null;
+  }
+}
+
 export function buildStateFromNormalizedTables(
-  projectRows: Array<Record<string, any>>,
-  sessionRows: Array<Record<string, any>>,
-  attachmentRows: Array<Record<string, any>>,
+  projectRows: ProjectRow[],
+  sessionRows: SessionRow[],
+  attachmentRows: AttachmentRow[],
   activeProjectId?: string | null,
 ): AppState {
   const attachmentsByProject = attachmentRows.reduce<Record<string, ProjectAttachment[]>>((acc, row) => {
@@ -158,11 +216,14 @@ export function buildStateFromNormalizedTables(
     if (!projectId) {
       return acc;
     }
-    const next = {
-      id: String(row.attachment_id ?? `attachment-${crypto.randomUUID?.() ?? Math.random()}`),
-      label: String(row.label ?? 'Anexo'),
+    const next = normalizeAttachment({
+      id: String(row.attachment_id ?? ''),
+      label: String(row.label ?? ''),
       url: String(row.url ?? ''),
-    };
+    });
+    if (!next) {
+      return acc;
+    }
     acc[projectId] = [...(acc[projectId] ?? []), next];
     return acc;
   }, {});
@@ -171,7 +232,7 @@ export function buildStateFromNormalizedTables(
     hydrateProject(
       {
         id: String(row.project_id ?? `project-${index + 1}`),
-        name: String(row.name ?? `Case ${index + 1}`),
+        name: String(row.name ?? `Project ${index + 1}`),
         note: String(row.note ?? ''),
         attachments: attachmentsByProject[String(row.project_id ?? '')] ?? [],
         selectedGoal: String(row.selected_goal ?? goalLibrary[0]),
@@ -183,16 +244,16 @@ export function buildStateFromNormalizedTables(
         reminderEnabled: Boolean(row.reminder_enabled),
         reminderTime: String(row.reminder_time ?? '18:00'),
         lastReminderDate: row.last_reminder_date ? String(row.last_reminder_date) : null,
-        ritualChecks: (row.ritual_checks as Record<string, boolean> | undefined),
+        ritualChecks: row.ritual_checks ?? undefined,
         soundtrackUrl: String(row.soundtrack_url ?? ambientPresets[0].url),
         cueTheme: (String(row.cue_theme ?? 'embers') as CueTheme),
         archived: Boolean(row.archived),
         restartMode: Boolean(row.restart_mode),
-        restartChecks: (row.restart_checks as Record<string, boolean> | undefined),
+        restartChecks: row.restart_checks ?? undefined,
         sessionOutcome: row.session_outcome ? String(row.session_outcome) as SessionResultado : undefined,
       } as Partial<Project>,
       `project-${index + 1}`,
-      `Case ${index + 1}`,
+      `Project ${index + 1}`,
       '',
     ),
   );

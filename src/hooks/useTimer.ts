@@ -34,7 +34,7 @@ export function useTimer(
     if (mode === 'idle') {
       setSecondsLeft(activeProject.sprintMinutes * 60);
     }
-  }, [activeProject, mode]);
+  }, [activeProject, mode, setSecondsLeft]);
 
   useEffect(() => {
     if (mode === 'idle' || isPaused || !activeProject) {
@@ -56,14 +56,14 @@ export function useTimer(
     }, 1000);
 
     return () => window.clearInterval(timer);
-  }, [activeProject?.id, mode, isPaused]);
+  }, [activeProject, activeProject?.id, mode, isPaused, setSecondsLeft]);
 
   const startSprint = useCallback(() => {
     if (!activeProject) return;
     setMode('sprint');
     setIsPaused(false);
     setSecondsLeft(activeProject.sprintMinutes * 60);
-  }, [activeProject]);
+  }, [activeProject, setSecondsLeft]);
 
   const togglePause = useCallback(() => {
     setIsPaused(prev => !prev);
@@ -74,7 +74,7 @@ export function useTimer(
     setMode('idle');
     setIsPaused(false);
     setSecondsLeft(activeProject.sprintMinutes * 60);
-  }, [activeProject]);
+  }, [activeProject, setSecondsLeft]);
 
   const completeSession = useCallback(() => {
     if (!activeProject) return;
@@ -151,7 +151,7 @@ export function useTimer(
     setMode('idle');
     setIsPaused(false);
     setSecondsLeft(10 * 60);
-  }, [activeProject, updateProject, setSessionNote, setRestartCue]);
+  }, [activeProject, updateProject, setSessionNote, setRestartCue, setSecondsLeft]);
 
   const formatTime = useCallback((totalSeconds: number) => {
     const minutes = Math.floor(totalSeconds / 60)

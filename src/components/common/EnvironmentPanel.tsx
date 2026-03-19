@@ -1,7 +1,18 @@
 import React from 'react';
 import { Music, EyeOff, Maximize } from 'lucide-react';
+import type { Project } from '../../types';
 
-export function EnvironmentPanel({ ambientPresets, activeProject, updateProject, toggleFullscreen, isFullscreen }: any) {
+type AmbientPreset = { label: string; url: string };
+
+interface EnvironmentPanelProps {
+  ambientPresets: AmbientPreset[];
+  activeProject: Project;
+  updateProject: (updater: (project: Project) => Project) => void;
+  toggleFullscreen: () => void;
+  isFullscreen: boolean;
+}
+
+export function EnvironmentPanel({ ambientPresets, activeProject, updateProject, toggleFullscreen, isFullscreen }: EnvironmentPanelProps) {
   return (
     <article className="card panel ambient-panel">
       <div className="panel-head">
@@ -12,19 +23,19 @@ export function EnvironmentPanel({ ambientPresets, activeProject, updateProject,
       </div>
       <div className="utility-grid">
         <label className="input-block compact" style={{ padding: 0, background: 'transparent', border: 'none' }}>
-          <span style={{ marginBottom: '8px' }}>Background Audio (URL)</span>
-          <input style={{ background: 'var(--input-bg)' }} onChange={(event) => updateProject((project: any) => ({ ...project, soundtrackUrl: event.target.value }))} type="url" value={activeProject.soundtrackUrl} />
+          <span style={{ marginBottom: '8px' }}>Ambient Audio URL</span>
+          <input style={{ background: 'var(--input-bg)' }} onChange={(event) => updateProject((project) => ({ ...project, soundtrackUrl: event.target.value }))} type="url" value={activeProject.soundtrackUrl} />
         </label>
         <div className="preset-row">
-          {ambientPresets.map((preset: any) => (
-            <button key={preset.label} className="pill" onClick={() => updateProject((project: any) => ({ ...project, soundtrackUrl: preset.url }))} type="button" style={{ fontSize: '0.8rem', padding: '8px 12px' }}>
+          {ambientPresets.map((preset) => (
+            <button key={preset.label} className="pill" onClick={() => updateProject((project) => ({ ...project, soundtrackUrl: preset.url }))} type="button" style={{ fontSize: '0.8rem', padding: '8px 12px' }}>
               {preset.label}
             </button>
           ))}
         </div>
         <label className="input-block compact" style={{ padding: 0, marginTop: '8px', background: 'transparent', border: 'none' }}>
-          <span style={{ marginBottom: '8px' }}>Visual Theme</span>
-          <select style={{ background: 'var(--input-bg)' }} onChange={(event) => updateProject((project: any) => ({ ...project, cueTheme: event.target.value }))} value={activeProject.cueTheme}>
+          <span style={{ marginBottom: '8px' }}>Theme</span>
+          <select style={{ background: 'var(--input-bg)' }} onChange={(event) => updateProject((project) => ({ ...project, cueTheme: event.target.value as Project['cueTheme'] }))} value={activeProject.cueTheme}>
             <option value="embers">Embers</option>
             <option value="mist">Mist</option>
             <option value="moonlight">Moonlight</option>

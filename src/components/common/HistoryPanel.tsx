@@ -1,12 +1,31 @@
 import React, { useState } from 'react';
 import { Clock, Search, Plus, Pencil, Trash2 } from 'lucide-react';
+import type { HistoryOutcomeFilter, HistoryProjectFilter, Project, SessionRecord } from '../../types';
+import { outcomeOptions } from '../../constants';
+
+interface HistoryPanelProps {
+  historyQuery: string;
+  setHistoryQuery: React.Dispatch<React.SetStateAction<string>>;
+  historyProjectFilter: HistoryProjectFilter;
+  setHistoryProjectFilter: React.Dispatch<React.SetStateAction<HistoryProjectFilter>>;
+  activeProject: Project | undefined;
+  historyOutcomeFilter: HistoryOutcomeFilter;
+  setHistoryOutcomeFilter: React.Dispatch<React.SetStateAction<HistoryOutcomeFilter>>;
+  outcomeOptions: typeof outcomeOptions;
+  filteredHistory: SessionRecord[];
+  projectNameMap: Record<string, string>;
+  outcomeLabel: (outcome: SessionRecord['outcome']) => string;
+  onEditSession: (session: SessionRecord) => void;
+  onDeleteSession: (sessionId: string) => void;
+  onAddSession?: () => void;
+}
 
 export function HistoryPanel({
   historyQuery, setHistoryQuery, historyProjectFilter, setHistoryProjectFilter,
   activeProject, historyOutcomeFilter, setHistoryOutcomeFilter, outcomeOptions,
   filteredHistory, projectNameMap, outcomeLabel,
   onEditSession, onDeleteSession, onAddSession
-}: any) {
+}: HistoryPanelProps) {
   const [showAll, setShowAll] = useState(false);
 
   return (
@@ -50,16 +69,16 @@ export function HistoryPanel({
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '16px' }}>
           <label className="input-block compact" style={{ padding: 0, background: 'transparent', border: 'none' }}>
             <span style={{ marginBottom: '8px' }}>Filter by Project</span>
-            <select style={{ background: 'var(--input-bg)' }} onChange={(event) => setHistoryProjectFilter(event.target.value)} value={historyProjectFilter}>
+            <select style={{ background: 'var(--input-bg)' }} onChange={(event) => setHistoryProjectFilter(event.target.value as HistoryProjectFilter)} value={historyProjectFilter}>
               <option value="active">Active: "{activeProject?.name ?? 'None'}"</option>
               <option value="all">All Projects</option>
             </select>
           </label>
           <label className="input-block compact" style={{ padding: 0, background: 'transparent', border: 'none' }}>
             <span style={{ marginBottom: '8px' }}>Filter by Outcome</span>
-            <select style={{ background: 'var(--input-bg)' }} onChange={(event) => setHistoryOutcomeFilter(event.target.value)} value={historyOutcomeFilter}>
+            <select style={{ background: 'var(--input-bg)' }} onChange={(event) => setHistoryOutcomeFilter(event.target.value as HistoryOutcomeFilter)} value={historyOutcomeFilter}>
               <option value="all">All Outcomes</option>
-              {outcomeOptions.map((option: any) => (
+              {outcomeOptions.map((option) => (
                 <option key={option.value} value={option.value}>{option.label}</option>
               ))}
             </select>
@@ -79,7 +98,7 @@ export function HistoryPanel({
         ) : (
           <>
             <ul style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '20px' }}>
-              {(showAll ? filteredHistory : filteredHistory.slice(0, 50)).map((entry: any, index: number) => (
+              {(showAll ? filteredHistory : filteredHistory.slice(0, 50)).map((entry, index: number) => (
                 <li className="history-item" key={entry.id || `${entry.projectId}-${entry.date}-${index}`} style={{ background: 'var(--surface-soft)', borderRadius: '16px', padding: '16px', border: '1px solid rgba(255,255,255,0.03)', position: 'relative' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -145,4 +164,3 @@ export function HistoryPanel({
     </article>
   );
 }
-

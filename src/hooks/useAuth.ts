@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Session } from '@supabase/supabase-js';
+import { Session, SupabaseClient } from '@supabase/supabase-js';
 import type { Profile, AuthView } from '../types';
 
 export function useAuth(
-  supabase: any,
+  supabase: SupabaseClient | null,
   hasSupabaseConfig: boolean,
   createProfile: (userId: string, timezone: string) => Profile
 ) {
@@ -19,13 +19,14 @@ export function useAuth(
   const [profileMessage, setProfileMessage] = useState('');
 
   const [passwordMessage, setSenhaMessage] = useState('');
+  const userId = session?.user?.id;
 
   useEffect(() => {
     if (!hasSupabaseConfig || !supabase) {
       return;
     }
 
-    supabase.auth.getSession().then(({ data }: any) => {
+    supabase.auth.getSession().then(({ data }) => {
       setSession(data.session ?? null);
     });
 
@@ -51,7 +52,7 @@ export function useAuth(
   }, [hasSupabaseConfig, supabase]);
 
   useEffect(() => {
-    if (!session?.user || !hasSupabaseConfig || !supabase) {
+    if (!userId || !hasSupabaseConfig || !supabase) {
       return;
     }
 
@@ -60,7 +61,7 @@ export function useAuth(
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
     const loadProfile = async () => {
-      const { data, error } = await client.from('profiles').select('*').eq('user_id', session.user.id).maybeSingle();
+      const { data, error } = await client.from('profiles').select('*').eq('user_id', userId).maybeSingle();
       if (cancelled) {
         return;
       }
@@ -73,7 +74,7 @@ export function useAuth(
         setProfileLoaded(true);
         return;
       }
-      const initialProfile = createProfile(session.user.id, timezone);
+      const initialProfile = createProfile(userId, timezone);
       const { data: inserted, error: insertError } = await client
         .from('profiles')
         .insert(initialProfile)
@@ -94,10 +95,10 @@ export function useAuth(
     return () => {
       cancelled = true;
     };
-  }, [session?.user?.id, hasSupabaseConfig, supabase, createProfile]);
+  }, [userId, hasSupabaseConfig, supabase, createProfile]);
 
   useEffect(() => {
-    if (!profileLoaded || !profile || !session?.user || !supabase) {
+    if (!profileLoaded || !profile || !userId || !supabase) {
       return;
     }
     const client = supabase;
@@ -110,7 +111,7 @@ export function useAuth(
       setProfileMessage('Profile settings sealed in the cloud.');
     }, 600);
     return () => window.clearTimeout(timer);
-  }, [profile, profileLoaded, session?.user?.id, supabase]);
+  }, [profile, profileLoaded, userId, supabase]);
 
   async function signInWithPassword() {
     if (!supabase || !authEmail.trim() || !authPassword) {

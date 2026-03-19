@@ -1,10 +1,22 @@
 import React from 'react';
 import { Settings } from 'lucide-react';
+import type { Dispatch, SetStateAction } from 'react';
+import type { Profile, UiTheme, ProfileEditableKey } from '../../types';
+
+interface PreferencesPanelProps {
+  session: unknown;
+  profile: Profile | null;
+  applyProfileDefaultsToActiveProject: () => void;
+  uiTheme: UiTheme;
+  setUiTheme: Dispatch<SetStateAction<UiTheme>>;
+  updateProfile: <K extends ProfileEditableKey>(key: K, value: Profile[K]) => void;
+  profileMessage: string;
+}
 
 export function PreferencesPanel({
   session, profile, applyProfileDefaultsToActiveProject, uiTheme, setUiTheme,
   updateProfile, profileMessage
-}: any) {
+}: PreferencesPanelProps) {
   if (!session || !profile) return null;
 
   return (
@@ -12,7 +24,7 @@ export function PreferencesPanel({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
         <div>
           <p className="eyebrow" style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '6px' }}><Settings size={14} /> Preferences</p>
-          <h2 style={{ fontSize: '1.4rem' }}>Account Defaults</h2>
+          <h2 style={{ fontSize: '1.4rem' }}>Workspace Defaults</h2>
           <p style={{ color: 'var(--muted)', marginTop: '8px', maxWidth: '100%', lineHeight: 1.5, fontSize: '0.9rem' }}>
             These settings act as defaults for all new projects and sync across your devices.
           </p>
@@ -25,8 +37,8 @@ export function PreferencesPanel({
           <h3 style={{ fontSize: '1.1rem', marginBottom: '20px', borderBottom: '1px solid var(--panel-border)', paddingBottom: '12px' }}>Appearance</h3>
           <label className="input-block compact" style={{ padding: 0, background: 'transparent', border: 'none' }}>
             <span style={{ marginBottom: '8px' }}>Theme</span>
-            <select style={{ background: 'var(--input-bg)' }} onChange={(event) => setUiTheme(event.target.value)} value={uiTheme}>
-              <option value="dark">Shadows (Dark)</option>
+            <select style={{ background: 'var(--input-bg)' }} onChange={(event) => setUiTheme(event.target.value as UiTheme)} value={uiTheme}>
+              <option value="dark">Dark</option>
               <option value="light">Light</option>
             </select>
           </label>
@@ -72,7 +84,7 @@ export function PreferencesPanel({
           <h3 style={{ fontSize: '1.1rem', marginBottom: '20px', borderBottom: '1px solid var(--panel-border)', paddingBottom: '12px' }}>Email Notifications</h3>
           <label className="input-block compact" style={{ padding: 0, marginBottom: '16px', background: 'transparent', border: 'none' }}>
             <span style={{ marginBottom: '8px' }}>Notification Channel</span>
-            <select style={{ background: 'var(--input-bg)' }} onChange={(event) => updateProfile('reminder_channel', event.target.value)} value={profile.reminder_channel}>
+            <select style={{ background: 'var(--input-bg)' }} onChange={(event) => updateProfile('reminder_channel', event.target.value as Profile['reminder_channel'])} value={profile.reminder_channel}>
               <option value="browser">Browser only</option>
               <option value="email">Email only</option>
               <option value="both">Both browser and email</option>
@@ -89,7 +101,7 @@ export function PreferencesPanel({
           </div>
         </div>
       </div>
-      {profileMessage ? <div className="status ready" style={{ marginTop: '24px', padding: '16px', fontSize: '1rem', background: 'rgba(167, 224, 104, 0.1)', color: 'var(--success)', borderRadius: '16px', border: '1px solid var(--success)' }}>{profileMessage}</div> : null}
+      {profileMessage ? <div className="status ready" role="status" aria-live="polite" aria-atomic="true" style={{ marginTop: '24px', padding: '16px', fontSize: '1rem', background: 'rgba(167, 224, 104, 0.1)', color: 'var(--success)', borderRadius: '16px', border: '1px solid var(--success)' }}>{profileMessage}</div> : null}
     </article>
   );
 }

@@ -6,6 +6,39 @@ import { NewProjectPanel } from '../common/NewProjectPanel';
 import { LinksPanel } from '../common/LinksPanel';
 import { EnvironmentPanel } from '../common/EnvironmentPanel';
 import { ArchivedProjectsPanel } from '../common/ArchivedProjectsPanel';
+import type { Dispatch, SetStateAction } from 'react';
+import type { NotificationState, Project } from '../../types';
+
+type AmbientPreset = { label: string; url: string };
+
+interface ProjectsViewProps {
+  activeProjetos: Project[];
+  activeProject: Project | undefined;
+  setActiveProject: (projectId: string) => void;
+  setMode: (mode: 'idle' | 'sprint' | 'break') => void;
+  setSecondsLeft: Dispatch<SetStateAction<number>>;
+  updateProject: (updater: (project: Project) => Project) => void;
+  createNewProject: () => void;
+  archiveActiveProject: () => void;
+  toggleReminder: () => void;
+  notificationState: NotificationState;
+  getReminderStatus: (notificationState: NotificationState, reminderEnabled: boolean) => string;
+  newProjectName: string;
+  setNewProjectName: Dispatch<SetStateAction<string>>;
+  newProjectNote: string;
+  setNewProjectNote: Dispatch<SetStateAction<string>>;
+  removeAttachment: (attachmentId: string) => void;
+  newAttachmentLabel: string;
+  setNewAttachmentLabel: Dispatch<SetStateAction<string>>;
+  newAttachmentUrl: string;
+  setNewAttachmentUrl: Dispatch<SetStateAction<string>>;
+  addAttachment: () => void;
+  archivedProjetos: Project[];
+  restoreProject: (projectId: string) => void;
+  ambientPresets: AmbientPreset[];
+  toggleFullscreen: () => void;
+  isFullscreen: boolean;
+}
 
 function ProjectsViewComponent({
   activeProjetos, activeProject, setActiveProject, setMode, setSecondsLeft,
@@ -13,7 +46,8 @@ function ProjectsViewComponent({
   newProjectNote, setNewProjectNote, removeAttachment, newAttachmentLabel, setNewAttachmentLabel,
   newAttachmentUrl, setNewAttachmentUrl, addAttachment, archivedProjetos, restoreProject,
   ambientPresets, toggleFullscreen, isFullscreen
-}: any) {
+}: ProjectsViewProps) {
+  const safeActiveProject = activeProject ?? activeProjetos[0];
   return (
     <section className="page-container workspace-projects">
       <div className="today-two-column-layout">
@@ -27,11 +61,11 @@ function ProjectsViewComponent({
             </div>
 
             <ProjectList {...{
-              activeProjetos, activeProject, setActiveProject, setMode, setSecondsLeft
+              activeProjetos, activeProject: safeActiveProject, setActiveProject, setMode, setSecondsLeft
             }} />
 
             <ProjectSettingsPanel {...{
-              activeProjetos, activeProject, updateProject, archiveActiveProject
+              activeProjetos, activeProject: safeActiveProject, updateProject, archiveActiveProject
             }} />
 
             <NewProjectPanel {...{
@@ -43,13 +77,13 @@ function ProjectsViewComponent({
 
         <div className="today-sidebar-col">
           <LinksPanel {...{
-            activeProject, removeAttachment, newAttachmentLabel,
+            activeProject: safeActiveProject, removeAttachment, newAttachmentLabel,
             setNewAttachmentLabel, newAttachmentUrl, setNewAttachmentUrl,
             addAttachment
           }} />
 
           <EnvironmentPanel {...{
-            ambientPresets, activeProject, updateProject,
+            ambientPresets, activeProject: safeActiveProject, updateProject,
             toggleFullscreen, isFullscreen
           }} />
 

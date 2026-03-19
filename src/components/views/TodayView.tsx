@@ -1,42 +1,66 @@
 import React, { memo, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import type { Dispatch, SetStateAction } from 'react';
 import { BellRing } from 'lucide-react';
 import { MobileAccordion } from '../common/MobileAccordion';
 import { TimerPanel } from '../common/TimerPanel';
 import { NotesPanel } from '../common/NotesPanel';
 import { RitualPanel } from '../common/RitualPanel';
 import { SessionPanel } from '../common/SessionPanel';
+import { SessionEditorModal } from '../common/SessionEditorModal';
+import { ToastNotification } from '../common/ToastNotification';
 import { goalLibrary, ritualSteps, restartSteps, outcomeOptions } from '../../constants';
-import { getProjectAnalytics } from '../../utils/analytics';
+import {
+  getCrossProjectSummary,
+  getCoachingInsight,
+  getRecoveryMessage,
+  getRestartState,
+  getStreakLabel,
+  outcomeLabel,
+  projectGoal,
+  getProjectAnalytics,
+} from '../../utils/analytics';
+import { createSessionDraft } from '../../utils/session';
+import type { AppState, Project, SessionRecord } from '../../types';
 
-import { getTodayKey, getTimeKey } from '../../utils/date';
+interface TodayViewProps {
+  activeProject: Project | undefined;
+  state: AppState;
+  setState: React.Dispatch<React.SetStateAction<AppState>>;
+  mode: 'idle' | 'sprint' | 'break';
+  secondsLeft: number;
+  setSecondsLeft: (value: number | ((prev: number) => number)) => void;
+  startSprint: () => void;
+  resetTimer: () => void;
+  completeSession: () => void;
+  activateRestartMode: () => void;
+  formatTime: (seconds: number) => string;
+  updateProject: (updater: (project: Project) => Project) => void;
+  sessionNote: string;
+  setSessionNote: Dispatch<SetStateAction<string>>;
+  restartCue: string;
+  setRestartCue: Dispatch<SetStateAction<string>>;
+  deleteSession: (sessionId: string) => void;
+  updateSession: (sessionId: string, updates: Partial<SessionRecord>) => void;
+  isPaused: boolean;
+  togglePause: () => void;
+  toast: { message: string; visible: boolean; type?: 'info' | 'success' } | null;
+  setToast: React.Dispatch<React.SetStateAction<{ message: string; visible: boolean; type?: 'info' | 'success' } | null>>;
+  restoreSession: () => void;
+  addSession: (session: SessionRecord) => void;
+}
 
 function TodayViewComponent({
   activeProject, state, setState, mode, secondsLeft, setSecondsLeft,
   startSprint, resetTimer, completeSession, activateRestartMode,
   formatTime, updateProject, sessionNote, setSessionNote,
-  restartCue, setRestartCue, getStreakLabel, projectGoal,
-  getCoachingInsight, getRecoveryMessage, getRestartState, outcomeLabel,
-  getCrossProjectSummary, deleteSession, updateSession,
+  restartCue, setRestartCue, deleteSession, updateSession,
   isPaused, togglePause, toast, setToast, restoreSession, addSession
-}: any) {
-  const [editingSession, setEditingSession] = React.useState<any>(null);
+}: TodayViewProps) {
+  const safeActiveProject = activeProject ?? state.projects[0];
+  const [editingSession, setEditingSession] = React.useState<SessionRecord | null>(null);
   const [sessionToDelete, setSessionToDelete] = React.useState<string | null>(null);
   const [isAddingSession, setIsAddingSession] = React.useState(false);
-  const [newSession, setNewSession] = React.useState<any>({
-    projectId: activeProject?.id || state.projects[0]?.id,
-    date: getTodayKey(),
-    timeOfDay: getTimeKey(),
-    minutes: 30,
-    goal: '',
-    outcome: 'drafted',
-    mood: 'steady',
-    energy: 'medium',
-    focus: 'usable',
-    note: '',
-    restartCue: '',
-    usedRestartMode: false
-  });
 
   React.useEffect(() => {
     if (editingSession || sessionToDelete || isAddingSession) {
@@ -60,18 +84,9 @@ function TodayViewComponent({
     };
   }, [editingSession, sessionToDelete, isAddingSession]);
 
-  const handleManualAddSession = () => {
-    if (!newSession.projectId || !newSession.goal) return;
-    addSession({
-      ...newSession,
-      id: crypto.randomUUID()
-    });
-    setIsAddingSession(false);
-  };
-
   const recentSessions = useMemo(() => {
     return state.sessions
-      .filter((s: any) => s.projectId === activeProject?.id)
+      .filter((s) => s.projectId === activeProject?.id)
       .slice(-5)
       .reverse();
   }, [state.sessions, activeProject?.id]);
@@ -79,55 +94,56 @@ function TodayViewComponent({
   const analytics = useMemo(() => {
     if (!activeProject) return null;
     return getProjectAnalytics(activeProject, state.sessions);
-  }, [activeProject, state.sessions, getProjectAnalytics]);
+  }, [activeProject, state.sessions]);
 
   const coaching = useMemo(() => {
     if (!activeProject) return { message: '', evidence: '' };
     return getCoachingInsight(activeProject, state);
-  }, [activeProject, state, getCoachingInsight]);
+  }, [activeProject, state]);
 
   const recoveryMessage = useMemo(() => {
     if (!activeProject) return '';
     return getRecoveryMessage(activeProject);
-  }, [activeProject, getRecoveryMessage]);
+  }, [activeProject]);
 
   const restart = useMemo(() => {
     if (!activeProject) return { needed: false, daysAway: 0 };
     return getRestartState(activeProject);
-  }, [activeProject, getRestartState]);
+  }, [activeProject]);
 
   const streakLabel = useMemo(() => {
     if (!activeProject) return '';
     return getStreakLabel(activeProject.lastCompletionDate, activeProject.streak);
-  }, [activeProject, getStreakLabel]);
+  }, [activeProject]);
 
-  const dashboard = useMemo(() => getCrossProjectSummary(state.projects, state.sessions), [state.projects, state.sessions, getCrossProjectSummary]);
+  const dashboard = useMemo(() => getCrossProjectSummary(state.projects, state.sessions), [state.projects, state.sessions]);
 
   const ritualPronto = useMemo(() => {
     if (!activeProject) return false;
     return Object.values(activeProject.ritualChecks).every(Boolean);
-  }, [activeProject?.ritualChecks]);
+  }, [activeProject]);
 
   const readyToStart = useMemo(() => {
     return !!activeProject;
   }, [activeProject]);
+  const hasFirstRun = state.sessions.length === 0;
 
   const toggleRitual = (key: string) => {
-    updateProject((p: any) => ({
+    updateProject((p) => ({
       ...p,
       ritualChecks: { ...p.ritualChecks, [key]: !p.ritualChecks[key] }
     }));
   };
 
   const resetRitual = () => {
-    updateProject((p: any) => ({
+    updateProject((p) => ({
       ...p,
-      ritualChecks: Object.keys(p.ritualChecks).reduce((acc: any, k) => ({ ...acc, [k]: false }), {})
+      ritualChecks: Object.keys(p.ritualChecks).reduce<Record<string, boolean>>((acc, k) => ({ ...acc, [k]: false }), {})
     }));
   };
 
   const toggleRestartCheck = (key: string) => {
-    updateProject((p: any) => ({
+    updateProject((p) => ({
       ...p,
       restartChecks: { ...p.restartChecks, [key]: !p.restartChecks[key] }
     }));
@@ -151,7 +167,7 @@ function TodayViewComponent({
 
         <div className="hero-stats">
           <div className="stat-card">
-            <span className="summary-label">Week/Min</span>
+            <span className="summary-label">Weekly Minutes</span>
             <strong className="summary-value">{dashboard.totalWeeklyMinutes}</strong>
           </div>
           <div className="stat-card">
@@ -159,16 +175,47 @@ function TodayViewComponent({
             <strong className="summary-value">{activeProject?.streak || 0}d</strong>
           </div>
           <div className="stat-card">
-            <span className="summary-label">Active Cases</span>
+            <span className="summary-label">Active Projects</span>
             <strong className="summary-value">{dashboard.activeCount}</strong>
           </div>
         </div>
       </header>
 
+      {hasFirstRun ? (
+        <section
+          className="card panel"
+          style={{ marginBottom: '24px', border: '1px solid var(--panel-border)', background: 'linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,122,89,0.06))' }}
+          aria-label="Getting started"
+        >
+          <div className="panel-head" style={{ marginBottom: '12px' }}>
+            <div>
+              <p className="eyebrow" style={{ color: 'var(--accent)' }}>First session setup</p>
+              <h2 style={{ margin: 0 }}>Start with a small win</h2>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '16px', alignItems: 'start' }}>
+            <div style={{ color: 'var(--muted)', lineHeight: 1.6 }}>
+              <p style={{ marginTop: 0 }}>Your workspace already has a starter project. You can begin immediately and refine the defaults later.</p>
+              <ul style={{ margin: 0, paddingLeft: '18px' }}>
+                <li>Run a short focused sprint.</li>
+                <li>Capture a return cue after the session.</li>
+                <li>Add another project only when the split is obvious.</li>
+              </ul>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <button className="primary" onClick={startSprint} type="button">Start first sprint</button>
+              <p style={{ margin: 0, color: 'var(--secondary)', fontSize: '0.9rem' }}>
+                Default timers and reminders can be adjusted from Projects and Account once you have a first pass of data.
+              </p>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       <section className="today-two-column-layout">
         <div className="today-main-col">
           <TimerPanel {...{
-            activeProject, mode, secondsLeft, formatTime, readyToStart,
+            activeProject: safeActiveProject, mode, secondsLeft, formatTime, readyToStart,
             isPaused, togglePause,
             startSprint, resetTimer, completeSession, updateProject,
             setSecondsLeft, goalLibrary
@@ -186,16 +233,16 @@ function TodayViewComponent({
           <MobileAccordion title="Preparation Ritual" defaultOpen={true}>
             <RitualPanel {...{
               ritualSteps, ritualPronto, resetRitual, toggleRitual,
-              activeProject, restart, restartSteps, activateRestartMode,
+              activeProject: safeActiveProject, restart, restartSteps, activateRestartMode,
               toggleRestartCheck
             }} />
           </MobileAccordion>
 
           <MobileAccordion title="Session Log" defaultOpen={false}>
             <SessionPanel {...{
-              outcomeOptions, activeProject, updateProject, state, setState,
+              outcomeOptions, activeProject: safeActiveProject, updateProject, state, setState,
               coaching, recoveryMessage, streakLabel, recentSessions, outcomeLabel,
-              onEditSession: (session: any) => setEditingSession(session),
+              onEditSession: (session: SessionRecord) => setEditingSession(session),
               onDeleteSession: (id: string) => setSessionToDelete(id),
               onAddSession: () => setIsAddingSession(true)
             }} />
@@ -203,163 +250,45 @@ function TodayViewComponent({
         </div>
       </section>
 
-      {/* Manual Add Session Modal */}
-      {isAddingSession && createPortal(
-        <div className="modal-overlay" onClick={() => setIsAddingSession(false)}>
-          <div className="modal-content card" style={{ maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
-            <div className="panel-head">
-              <h3>Manual Session Entry</h3>
-              <button className="ghost" onClick={() => setIsAddingSession(false)}>✕</button>
-            </div>
-
-            <div className="modal-scroll-area" style={{ maxHeight: '70vh', overflowY: 'auto', paddingRight: '8px' }}>
-              <label className="input-block">
-                <span>Project</span>
-                <select 
-                  value={newSession.projectId}
-                  onChange={e => setNewSession({ ...newSession, projectId: e.target.value })}
-                  style={{ background: 'var(--input-bg)' }}
-                >
-                  {state.projects.filter((p: any) => !p.archived).map((p: any) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-              </label>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '12px' }}>
-                <label className="input-block">
-                  <span>Date</span>
-                  <input
-                    type="date"
-                    value={newSession.date}
-                    onChange={e => setNewSession({ ...newSession, date: e.target.value })}
-                  />
-                </label>
-                <label className="input-block">
-                  <span>Time</span>
-                  <input
-                    type="time"
-                    value={newSession.timeOfDay}
-                    onChange={e => setNewSession({ ...newSession, timeOfDay: e.target.value })}
-                  />
-                </label>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '12px' }}>
-                <label className="input-block">
-                  <span>Duration (Minutes)</span>
-                  <input
-                    type="number"
-                    value={newSession.minutes}
-                    onChange={e => setNewSession({ ...newSession, minutes: Number(e.target.value) })}
-                  />
-                </label>
-                <label className="input-block">
-                  <span>Outcome</span>
-                  <select 
-                    value={newSession.outcome}
-                    onChange={e => setNewSession({ ...newSession, outcome: e.target.value })}
-                    style={{ background: 'var(--input-bg)' }}
-                  >
-                    {outcomeOptions.map((opt: any) => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              <label className="input-block" style={{ marginTop: '12px' }}>
-                <span>Goal / Target</span>
-                <input
-                  type="text"
-                  placeholder="What was the intention?"
-                  value={newSession.goal}
-                  onChange={e => setNewSession({ ...newSession, goal: e.target.value })}
-                />
-              </label>
-
-              <label className="input-block" style={{ marginTop: '12px' }}>
-                <span>Notes</span>
-                <textarea
-                  placeholder="Reflections from this session..."
-                  style={{ width: '100%', minHeight: '80px', background: 'var(--input-bg)', border: '1px solid var(--panel-border)', borderRadius: '14px', padding: '12px', color: 'var(--text)' }}
-                  value={newSession.note}
-                  onChange={e => setNewSession({ ...newSession, note: e.target.value })}
-                />
-              </label>
-            </div>
-
-            <div className="button-row-modal" style={{ marginTop: '24px', display: 'flex', gap: '12px' }}>
-              <button 
-                className="primary" 
-                onClick={handleManualAddSession} 
-                disabled={!newSession.projectId || !newSession.goal}
-                style={{ flex: 1 }}
-              >
-                Save Session
-              </button>
-              <button className="ghost" onClick={() => setIsAddingSession(false)} style={{ flex: 1 }}>Cancel</button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* Glassmorphism Session Edit Modal */}
-      {editingSession && createPortal(
-        <div className="modal-overlay" onClick={() => setEditingSession(null)}>
-          <div className="modal-content card" onClick={e => e.stopPropagation()}>
-            <div className="panel-head">
-              <h3>Edit Session</h3>
-              <button className="ghost" onClick={() => setEditingSession(null)}>✕</button>
-            </div>
-
-            <label className="input-block">
-              <span>Goal</span>
-              <input
-                type="text"
-                value={editingSession.goal}
-                onChange={e => setEditingSession({ ...editingSession, goal: e.target.value })}
-              />
-            </label>
-
-            <label className="input-block">
-              <span>Minutes</span>
-              <input
-                type="number"
-                value={editingSession.minutes}
-                onChange={e => setEditingSession({ ...editingSession, minutes: Number(e.target.value) })}
-              />
-            </label>
-
-            <label className="input-block" style={{ marginTop: '12px' }}>
-              <span>Notes</span>
-              <textarea
-                className="textarea-block"
-                style={{ width: '100%', minHeight: '100px', background: 'var(--input-bg)', border: '1px solid var(--panel-border)', borderRadius: '14px', padding: '12px', color: 'var(--text)' }}
-                value={editingSession.note}
-                onChange={e => setEditingSession({ ...editingSession, note: e.target.value })}
-              />
-            </label>
-
-            <div className="button-row-modal" style={{ marginTop: '24px', display: 'flex', gap: '12px' }}>
-              <button className="primary" onClick={() => {
-                updateSession(editingSession.id, editingSession);
-                setEditingSession(null);
-              }} style={{ flex: 1 }}>Save Changes</button>
-              <button className="ghost" onClick={() => setEditingSession(null)} style={{ flex: 1 }}>Cancel</button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <SessionEditorModal
+        open={isAddingSession || Boolean(editingSession)}
+        mode={editingSession ? 'edit' : 'create'}
+        session={editingSession || (isAddingSession ? createSessionDraft(activeProject?.id || state.projects[0]?.id || '') : null)}
+        projects={state.projects}
+        onSubmit={(session) => {
+          if (editingSession) {
+            updateSession(editingSession.id, session);
+            setEditingSession(null);
+          } else {
+            addSession(session);
+            setIsAddingSession(false);
+          }
+        }}
+        onClose={() => {
+          setEditingSession(null);
+          setIsAddingSession(false);
+        }}
+      />
 
       {/* Confirmation Modal for Deletion */}
       {sessionToDelete && createPortal(
         <div className="modal-overlay" onClick={() => setSessionToDelete(null)}>
-          <div className="modal-content card" style={{ maxWidth: '400px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+          <div
+            className="modal-content card"
+            style={{ maxWidth: '400px', textAlign: 'center' }}
+            onClick={e => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-session-title"
+            tabIndex={-1}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                setSessionToDelete(null);
+              }
+            }}
+          >
             <div className="panel-head" style={{ justifyContent: 'center' }}>
-              <h3 style={{ margin: 0 }}>Delete Session?</h3>
+              <h3 style={{ margin: 0 }} id="delete-session-title">Delete Session?</h3>
             </div>
 
             <p style={{ color: 'var(--muted)', margin: '16px 0 32px', lineHeight: 1.5 }}>
@@ -377,26 +306,21 @@ function TodayViewComponent({
               >
                 Yes, Delete
               </button>
-              <button className="ghost" onClick={() => setSessionToDelete(null)}>Cancel</button>
+              <button className="ghost" onClick={() => setSessionToDelete(null)} aria-label="Cancel deleting session">Cancel</button>
             </div>
           </div>
         </div>,
         document.body
       )}
 
-      {/* Floating Toast Notification */}
-      {toast?.visible && createPortal(
-        <div className={`toast-container ${toast.type || ''}`}>
-          <div className="toast-content">
-            <span className="toast-message">{toast.message}</span>
-            {toast.message === 'Session deleted' && (
-              <button className="toast-action" onClick={restoreSession}>Undo</button>
-            )}
-            <button className="toast-close" onClick={() => setToast({ ...toast, visible: false })}>✕</button>
-          </div>
-        </div>,
-        document.body
-      )}
+      {toast?.visible ? (
+        <ToastNotification
+          message={toast.message}
+          type={toast.type}
+          onUndo={toast.message === 'Session deleted' ? restoreSession : undefined}
+          onClose={() => setToast({ ...toast, visible: false })}
+        />
+      ) : null}
     </div>
   );
 }

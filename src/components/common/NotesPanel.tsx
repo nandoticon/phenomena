@@ -1,7 +1,17 @@
 import React from 'react';
 import { MessageSquare, Anchor } from 'lucide-react';
+import type { SessionRecord } from '../../types';
 
-export function NotesPanel({ setSessionNote, sessionNote, setRestartCue, restartCue, recentSessions, analytics }: any) {
+interface NotesPanelProps {
+  setSessionNote: React.Dispatch<React.SetStateAction<string>>;
+  sessionNote: string;
+  setRestartCue: React.Dispatch<React.SetStateAction<string>>;
+  restartCue: string;
+  recentSessions: SessionRecord[];
+  analytics: { noteSeed: string } | null;
+}
+
+export function NotesPanel({ setSessionNote, sessionNote, setRestartCue, restartCue, recentSessions, analytics }: NotesPanelProps) {
   return (
     <article className="card panel notes-panel workspace-today">
       <div className="panel-head">
@@ -24,7 +34,7 @@ export function NotesPanel({ setSessionNote, sessionNote, setRestartCue, restart
         <Anchor size={20} style={{ color: 'var(--muted)' }} />
         <div>
           <strong>Yesterday's starting point:</strong>
-          <p>{recentSessions.find((entry: any) => entry.restartCue)?.restartCue || analytics.noteSeed || "No previous notes."}</p>
+          <p>{recentSessions.find((entry) => entry.restartCue)?.restartCue || analytics?.noteSeed || "No previous notes."}</p>
         </div>
       </div>
     </article>

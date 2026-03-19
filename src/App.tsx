@@ -1,4 +1,4 @@
-import { ChangeEvent, useEffect, useMemo, useRef, useState, useCallback, lazy, Suspense } from 'react';
+import { ChangeEvent, useEffect, useMemo, useRef, useState, useCallback, lazy, Suspense, useDeferredValue } from 'react';
 import { Moon, Sun, BookOpen, Activity, LayoutDashboard, Settings, Feather } from 'lucide-react';
 import { hasSupabaseConfig, supabase } from './lib/supabase';
 import { useAuth } from './hooks/useAuth';
@@ -9,7 +9,7 @@ import {
   Mood, Energy, Focus, SessionResultado, SessionRecord,
   CueTheme, WorkspaceView, UiTheme, Project, Profile,
   AppState, ChartPoint, ChartRange, ComparisonMetric,
-  HistoryProjectFilter, HistoryOutcomeFilter, NotificationState
+  HistoryProjectFilter, HistoryOutcomeFilter, NotificationState, ReminderEvent, BackupPreview
 } from './types';
 
 import {
@@ -19,13 +19,9 @@ import {
 } from './constants';
 
 import { getTodayKey, getTimeKey, formatCloudTimestamp } from './utils/date';
-import { parseStoredState, serializeSyncState, createProject } from './utils/storage';
-import {
-  projectGoal, getStreakLabel, getReminderStatus, shouldTriggerReminder,
-  getProjectAnalytics, getCrossProjectSummary, getCoachingInsight,
-  getRecoveryMessage, getRestartState, outcomeLabel, getProjectAttachmentCount,
-  getMoodSeries, getOutcomeSeries, getRecentDaySeries, getProjectComparisonSeries
-} from './utils/analytics';
+import { parseStoredState, parseBackupPreview, createBackupManifest, serializeSyncState, createProject } from './utils/storage';
+import { normalizeProject, normalizeSession as normalizeSessionRecord, normalizeUrl } from './utils/validation';
+import { getReminderStatus, shouldTriggerReminder, getProjectAttachmentCount } from './utils/analytics';
 
 import { TodayViewSkeleton } from './components/common/Skeleton';
 
@@ -39,23 +35,68 @@ export default function App() {
   const [hydrated, setHydrated] = useState(false);
 
   const { session, authView, setAuthView, authEmail, setAuthEmail, authPassword, setAuthPassword, authPasswordConfirm, setAuthPasswordConfirm, authMessage, setAuthMessage, passwordMessage, setSenhaMessage, profile, setProfile, profileLoaded, setProfileLoaded, profileMessage, setProfileMessage, signInWithPassword, signUpWithPassword, sendPasswordReset, updatePassword, signOut } = useAuth(supabase, hasSupabaseConfig, createProfile);
-  const { cloudStatus, setNuvemStatus, remoteLoaded, setRemoteLoaded, remoteSnapshot, setRemoteSnapshot, remoteUpdatedAt, setRemoteUpdatedAt, normalizedMessage, setNormalizedMessage, pullCloudState, pushLocalState } = useCloudSync(supabase, hasSupabaseConfig, session, state, setState, hydrated, profile);
+  const { cloudStatus, setNuvemStatus, remoteLoaded, setRemoteLoaded, remoteSnapshot, setRemoteSnapshot, remoteUpdatedAt, setRemoteUpdatedAt, normalizedMessage, setNormalizedMessage, syncConflict, syncQueue, pullCloudState, pushLocalState, replaceCloudWithLocal } = useCloudSync(supabase, hasSupabaseConfig, session, state, setState, hydrated, profile);
   const [notificationState, setNotificationState] = useState<NotificationState>('default');
   const [toast, setToast] = useState<{ message: string; visible: boolean; type?: 'info' | 'success' } | null>(null);
   const [lastDeletedSession, setLastDeletedSession] = useState<SessionRecord | null>(null);
   const [importMessage, setImportMessage] = useState('');
+  const [reminderEvents, setReminderEvents] = useState<ReminderEvent[]>([]);
+  const [backupName, setBackupName] = useState('Phenomena backup');
+  const [importPreview, setImportPreview] = useState<BackupPreview | null>(null);
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectNote, setNewProjectNote] = useState('');
   const [sessionNote, setSessionNote] = useState('');
   const [restartCue, setRestartCue] = useState('');
   const [newAttachmentLabel, setNewAttachmentLabel] = useState('');
   const [newAttachmentUrl, setNewAttachmentUrl] = useState('');
+  const toastTimerRef = useRef<number | null>(null);
+  const importMessageTimerRef = useRef<number | null>(null);
+
+  const clearToastTimer = useCallback(() => {
+    if (toastTimerRef.current !== null) {
+      window.clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = null;
+    }
+  }, []);
+
+  const showToast = useCallback((
+    message: string,
+    type?: 'info' | 'success',
+    durationMs?: number,
+  ) => {
+    clearToastTimer();
+    setToast({ message, type, visible: true });
+    if (durationMs) {
+      toastTimerRef.current = window.setTimeout(() => {
+        setToast((current) => (current?.message === message ? { ...current, visible: false } : current));
+        toastTimerRef.current = null;
+      }, durationMs);
+    }
+  }, [clearToastTimer]);
+
+  const clearImportMessageTimer = useCallback(() => {
+    if (importMessageTimerRef.current !== null) {
+      window.clearTimeout(importMessageTimerRef.current);
+      importMessageTimerRef.current = null;
+    }
+  }, []);
+
+  const showImportMessage = useCallback((message: string, durationMs?: number) => {
+    clearImportMessageTimer();
+    setImportMessage(message);
+    if (durationMs) {
+      importMessageTimerRef.current = window.setTimeout(() => {
+        setImportMessage('');
+        importMessageTimerRef.current = null;
+      }, durationMs);
+    }
+  }, [clearImportMessageTimer]);
 
   const updateProject = useCallback((updater: (project: Project) => Project) => {
     setState((current) => ({
       ...current,
       projects: current.projects.map((project) =>
-        project.id === current.activeProjectId ? updater(project) : project,
+        project.id === current.activeProjectId ? normalizeProject(updater(project), project) : project,
       ),
     }));
   }, []);
@@ -73,10 +114,10 @@ export default function App() {
       projects: [...current.projects, project],
       activeProjectId: project.id,
     }));
-    setToast({ message: `Project "${newProjectName.trim()}" created!`, type: 'success', visible: true });
+    showToast(`Project "${newProjectName.trim()}" created!`, 'success', 3000);
     setNewProjectName('');
     setNewProjectNote('');
-  }, [newProjectName, newProjectNote, setState]);
+  }, [newProjectName, newProjectNote, setState, showToast]);
 
   const archiveActiveProject = useCallback(() => {
     setState((current) => ({
@@ -93,17 +134,19 @@ export default function App() {
   }, [setState]);
 
   const addAttachment = useCallback(() => {
-    if (!newAttachmentLabel.trim() || !newAttachmentUrl.trim()) return;
+    const label = newAttachmentLabel.trim();
+    const url = normalizeUrl(newAttachmentUrl);
+    if (!label || !url) {
+      showToast('Enter a valid http or https link.', 'info', 4000);
+      return;
+    }
     updateProject((p) => ({
       ...p,
-      attachments: [
-        ...p.attachments,
-        { id: crypto.randomUUID(), label: newAttachmentLabel.trim(), url: newAttachmentUrl.trim() },
-      ],
+      attachments: [...p.attachments, { id: crypto.randomUUID(), label, url }],
     }));
     setNewAttachmentLabel('');
     setNewAttachmentUrl('');
-  }, [newAttachmentLabel, newAttachmentUrl, updateProject]);
+  }, [newAttachmentLabel, newAttachmentUrl, updateProject, showToast]);
 
   const removeAttachment = useCallback((attachmentId: string) => {
     updateProject((p) => ({
@@ -124,9 +167,8 @@ export default function App() {
         sessions: current.sessions.filter((s) => s.id !== sessionId),
       };
     });
-    setToast({ message: 'Session deleted', visible: true });
-    setTimeout(() => setToast(current => current?.message === 'Session deleted' ? { ...current, visible: false } : current), 5000);
-  }, []);
+    showToast('Session deleted', 'info', 5000);
+  }, [showToast]);
 
   const restoreSession = useCallback(() => {
     if (!lastDeletedSession) return;
@@ -139,31 +181,29 @@ export default function App() {
       }).slice(-240),
     }));
     setLastDeletedSession(null);
-    setToast({ message: 'Session restored', visible: true, type: 'success' });
-    setTimeout(() => setToast(current => current?.message === 'Session restored' ? { ...current, visible: false } : current), 3000);
-  }, [lastDeletedSession]);
+    showToast('Session restored', 'success', 3000);
+  }, [lastDeletedSession, showToast]);
 
   const updateSession = useCallback((sessionId: string, updates: Partial<SessionRecord>) => {
     setState((current) => ({
       ...current,
-      sessions: current.sessions.map((s) => (s.id === sessionId ? { ...s, ...updates } : s)),
+      sessions: current.sessions.map((s) => (s.id === sessionId ? normalizeSessionRecord({ ...s, ...updates }, s.projectId, s) : s)),
     }));
   }, []);
 
   const addSession = useCallback((record: SessionRecord) => {
     setState((current) => ({
       ...current,
-      sessions: [...current.sessions, record].sort((a, b) => {
+      sessions: [...current.sessions, normalizeSessionRecord(record, record.projectId || current.activeProjectId)].sort((a, b) => {
         const dateA = new Date(`${a.date}T${a.timeOfDay}`).getTime();
         const dateB = new Date(`${b.date}T${b.timeOfDay}`).getTime();
         return dateA - dateB;
       }).slice(-240),
     }));
-    setToast({ message: 'Session manual entry added', visible: true, type: 'success' });
-    setTimeout(() => setToast(current => current?.message === 'Session manual entry added' ? { ...current, visible: false } : current), 3000);
-  }, []);
+    showToast('Session manual entry added', 'success', 3000);
+  }, [showToast]);
 
-  const updateProfile = useCallback((key: string, value: any) => {
+  const updateProfile = useCallback(<K extends keyof Profile>(key: K, value: Profile[K]) => {
     setProfile((current) => (current ? { ...current, [key]: value } : current));
   }, [setProfile]);
 
@@ -202,45 +242,56 @@ export default function App() {
   const [comparisonMetric, setComparisonMetric] = useState<ComparisonMetric>('minutes');
   const [activeChartPoint, setActiveChartPoint] = useState<ChartPoint | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const deferredHistoryQuery = useDeferredValue(historyQuery);
 
   const exportBackup = useCallback(() => {
-    const json = JSON.stringify(state, null, 2);
+    const backup = createBackupManifest(state, backupName.trim() || 'Phenomena backup');
+    const json = JSON.stringify(backup, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `phenomena-backup-${getTodayKey()}.json`;
+    a.download = `${(backup.name || 'phenomena-backup').toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${getTodayKey()}.json`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [state]);
+  }, [backupName, state]);
 
   const importBackup = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      try {
-        const parsed = JSON.parse(ev.target?.result as string);
-        setState(parseStoredState(JSON.stringify(parsed)));
-        setImportMessage('Backup restored successfully.');
-        setTimeout(() => setImportMessage(''), 4000);
-      } catch {
-        setImportMessage('Invalid backup file.');
+      const preview = parseBackupPreview(ev.target?.result as string);
+      if (preview) {
+        setImportPreview(preview);
+        showImportMessage('Backup loaded. Review the preview before restoring.', 5000);
+      } else {
+        showImportMessage('Invalid backup file.', 4000);
       }
     };
     reader.readAsText(file);
-  }, [setState]);
+  }, [showImportMessage]);
+
+  const confirmImportBackup = useCallback(() => {
+    if (!importPreview) return;
+    setState(importPreview.state);
+    setImportPreview(null);
+    showImportMessage('Backup restored successfully.', 4000);
+  }, [importPreview, setState, showImportMessage]);
+
+  const cancelImportBackup = useCallback(() => {
+    setImportPreview(null);
+    showImportMessage('Backup restore cancelled.', 3000);
+  }, [showImportMessage]);
 
   useEffect(() => {
     const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
     if (storedTheme === 'light' || storedTheme === 'dark') {
       setUiTheme(storedTheme);
     }
-    const activeProject = state.projects.find((project) => project.id === state.activeProjectId) ?? state.projects[0];
-    setSecondsLeft((activeProject?.sprintMinutes ?? 15) * 60);
     setNotificationState(typeof Notification === 'undefined' ? 'unsupported' : Notification.permission);
     setHydrated(true);
-  }, [state.activeProjectId, state.projects, setSecondsLeft]);
+  }, []);
 
   useEffect(() => {
     if (!hydrated) {
@@ -270,6 +321,11 @@ export default function App() {
     [state.activeProjectId, state.projects],
   );
 
+  const projectLookup = useMemo(() => state.projects.reduce<Record<string, Project>>((acc, project) => {
+    acc[project.id] = project;
+    return acc;
+  }, {}), [state.projects]);
+
   const activeProjetos = useMemo(() => state.projects.filter((project) => !project.archived), [state.projects]);
   const archivedProjetos = useMemo(() => state.projects.filter((project) => project.archived), [state.projects]);
 
@@ -277,7 +333,7 @@ export default function App() {
     return state.sessions
       .filter((session) => {
         if (historyProjectFilter === 'active') {
-          const project = state.projects.find((p) => p.id === session.projectId);
+          const project = projectLookup[session.projectId];
           return project && !project.archived;
         }
         if (historyProjectFilter === 'all') {
@@ -290,9 +346,9 @@ export default function App() {
         return session.outcome === historyOutcomeFilter;
       })
       .filter((session) => {
-        if (!historyQuery.trim()) return true;
-        const q = historyQuery.toLowerCase();
-        const project = state.projects.find((p) => p.id === session.projectId);
+        if (!deferredHistoryQuery.trim()) return true;
+        const q = deferredHistoryQuery.toLowerCase();
+        const project = projectLookup[session.projectId];
         return (
           project?.name.toLowerCase().includes(q) ||
           session.note.toLowerCase().includes(q) ||
@@ -304,7 +360,7 @@ export default function App() {
         const dateB = new Date(`${b.date}T${b.timeOfDay}`).getTime();
         return dateB - dateA;
       });
-  }, [state.sessions, state.projects, historyProjectFilter, historyOutcomeFilter, historyQuery, state.activeProjectId]);
+  }, [deferredHistoryQuery, historyOutcomeFilter, historyProjectFilter, projectLookup, state.activeProjectId, state.sessions]);
 
   const toggleReminder = useCallback(() => {
     if (!activeProject) return;
@@ -320,6 +376,45 @@ export default function App() {
     }
   }, [activeProject, notificationState, updateProject]);
 
+  const refreshReminderInbox = useCallback(async () => {
+    if (!session?.user?.id || !hasSupabaseConfig || !supabase) {
+      setReminderEvents([]);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('reminder_events')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .eq('status', 'pending')
+      .order('due_at', { ascending: true });
+
+    if (error) {
+      return;
+    }
+
+    setReminderEvents((data ?? []) as ReminderEvent[]);
+  }, [session?.user?.id]);
+
+  const acknowledgeReminder = useCallback(async (reminderId: string) => {
+    if (!session?.user?.id || !hasSupabaseConfig || !supabase) {
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from('reminder_events')
+      .update({ status: 'seen', seen_at: now, updated_at: now })
+      .eq('id', reminderId)
+      .eq('user_id', session.user.id);
+
+    if (error) {
+      return;
+    }
+
+    setReminderEvents((current) => current.filter((event) => event.id !== reminderId));
+  }, [session?.user?.id]);
+
   useEffect(() => {
     const timer = window.setInterval(() => {
       state.projects.forEach((project) => {
@@ -330,7 +425,7 @@ export default function App() {
               icon: '/vite.svg',
             });
           } else {
-            alert(`Reminder: Time for ${project.name}.`);
+            showToast(`Reminder: Time for ${project.name}.`, 'info', 4000);
           }
           setState((current) => ({
             ...current,
@@ -342,7 +437,38 @@ export default function App() {
       });
     }, 60000);
     return () => window.clearInterval(timer);
-  }, [state.projects, notificationState]);
+  }, [state.projects, notificationState, showToast]);
+
+  useEffect(() => {
+    if (!session?.user?.id || !hasSupabaseConfig || !supabase) {
+      setReminderEvents([]);
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      await refreshReminderInbox();
+      if (cancelled) {
+        return;
+      }
+    })();
+
+    const timer = window.setInterval(() => {
+      void refreshReminderInbox();
+    }, 300000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [refreshReminderInbox, session?.user?.id]);
+
+  useEffect(() => {
+    return () => {
+      clearToastTimer();
+      clearImportMessageTimer();
+    };
+  }, [clearToastTimer, clearImportMessageTimer]);
 
   const projectNameMap = useMemo(() => {
     return state.projects.reduce<Record<string, string>>((acc, project) => {
@@ -376,13 +502,6 @@ export default function App() {
               setSessionNote={setSessionNote}
               restartCue={restartCue}
               setRestartCue={setRestartCue}
-              getStreakLabel={getStreakLabel}
-              projectGoal={projectGoal}
-              getCoachingInsight={getCoachingInsight}
-              getRecoveryMessage={getRecoveryMessage}
-              getRestartState={getRestartState}
-              outcomeLabel={outcomeLabel}
-              getCrossProjectSummary={getCrossProjectSummary}
               deleteSession={deleteSession}
               updateSession={updateSession}
               toast={toast}
@@ -442,13 +561,6 @@ export default function App() {
               setComparisonMetric={setComparisonMetric}
               activeChartPoint={activeChartPoint}
               setActiveChartPoint={setActiveChartPoint}
-              getCrossProjectSummary={getCrossProjectSummary}
-              getProjectAnalytics={getProjectAnalytics}
-              getRecentDaySeries={getRecentDaySeries}
-              getOutcomeSeries={getOutcomeSeries}
-              getMoodSeries={getMoodSeries}
-              getProjectComparisonSeries={getProjectComparisonSeries}
-              outcomeLabel={outcomeLabel}
               projectNameMap={projectNameMap}
               addSession={addSession}
               updateSession={updateSession}
@@ -487,8 +599,11 @@ export default function App() {
               getProjectAttachmentCount={getProjectAttachmentCount}
               remoteUpdatedAt={remoteUpdatedAt}
               normalizedMessage={normalizedMessage}
+              syncConflict={syncConflict}
+              syncQueue={syncQueue}
               pullCloudState={pullCloudState}
               pushLocalState={pushLocalState}
+              replaceCloudWithLocal={replaceCloudWithLocal}
               uiTheme={uiTheme}
               setUiTheme={setUiTheme}
               importMessage={importMessage}
@@ -506,6 +621,15 @@ export default function App() {
               formatCloudTimestamp={formatCloudTimestamp}
               exportBackup={exportBackup}
               importBackup={importBackup}
+              backupName={backupName}
+              setBackupName={setBackupName}
+              importPreview={importPreview}
+              confirmImportBackup={confirmImportBackup}
+              cancelImportBackup={cancelImportBackup}
+              reminderEvents={reminderEvents}
+              acknowledgeReminder={acknowledgeReminder}
+              refreshReminderInbox={refreshReminderInbox}
+              projectNameMap={projectNameMap}
             />
           )}
         </Suspense>

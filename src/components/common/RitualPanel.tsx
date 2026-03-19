@@ -1,7 +1,20 @@
 import React from 'react';
 import { CheckCircle2 } from 'lucide-react';
+import type { Project, RitualStep } from '../../types';
 
-export function RitualPanel({ ritualSteps, ritualPronto, resetRitual, toggleRitual, activeProject, restart, restartSteps, activateRestartMode, toggleRestartCheck }: any) {
+interface RitualPanelProps {
+  ritualSteps: RitualStep[];
+  ritualPronto: boolean;
+  resetRitual: () => void;
+  toggleRitual: (stepId: string) => void;
+  activeProject: Project;
+  restart: { needed: boolean; daysAway: number };
+  restartSteps: readonly string[];
+  activateRestartMode: () => void;
+  toggleRestartCheck: (step: string) => void;
+}
+
+export function RitualPanel({ ritualSteps, ritualPronto, resetRitual, toggleRitual, activeProject, restart, restartSteps, activateRestartMode, toggleRestartCheck }: RitualPanelProps) {
   return (
     <article className="card panel ritual-panel workspace-today">
       <div className="panel-head">
@@ -13,7 +26,7 @@ export function RitualPanel({ ritualSteps, ritualPronto, resetRitual, toggleRitu
       </div>
 
       <div className="ritual-list">
-        {ritualSteps.map((step: any) => (
+        {ritualSteps.map((step) => (
           <label className={`ritual-item ${activeProject.ritualChecks[step.id] ? 'checked' : ''}`} key={step.id}>
             <input checked={activeProject.ritualChecks[step.id]} onChange={() => toggleRitual(step.id)} type="checkbox" />
             <span>
@@ -43,7 +56,7 @@ export function RitualPanel({ ritualSteps, ritualPronto, resetRitual, toggleRitu
               : `${activeProject.name} remained untouched for ${restart.daysAway} days. Use the return protocol to ease back into it.`}
           </p>
           <div className="restart-list">
-            {restartSteps.map((step: any) => (
+            {restartSteps.map((step) => (
               <label className={`restart-item ${activeProject.restartChecks[step] ? 'checked' : ''}`} key={step}>
                 <input checked={activeProject.restartChecks[step]} onChange={() => toggleRestartCheck(step)} type="checkbox" />
                 <span>{step}</span>

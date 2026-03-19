@@ -1,7 +1,19 @@
 import React from 'react';
 import { Link as LinkIcon } from 'lucide-react';
+import type { Dispatch, SetStateAction } from 'react';
+import type { Project } from '../../types';
 
-export function LinksPanel({ activeProject, removeAttachment, newAttachmentLabel, setNewAttachmentLabel, newAttachmentUrl, setNewAttachmentUrl, addAttachment }: any) {
+interface LinksPanelProps {
+  activeProject: Project;
+  removeAttachment: (attachmentId: string) => void;
+  newAttachmentLabel: string;
+  setNewAttachmentLabel: Dispatch<SetStateAction<string>>;
+  newAttachmentUrl: string;
+  setNewAttachmentUrl: Dispatch<SetStateAction<string>>;
+  addAttachment: () => void;
+}
+
+export function LinksPanel({ activeProject, removeAttachment, newAttachmentLabel, setNewAttachmentLabel, newAttachmentUrl, setNewAttachmentUrl, addAttachment }: LinksPanelProps) {
   return (
     <article className="card panel attachment-panel">
       <div className="panel-head">
@@ -14,7 +26,7 @@ export function LinksPanel({ activeProject, removeAttachment, newAttachmentLabel
       <div className="attachment-stack" style={{ marginTop: 0 }}>
         {activeProject.attachments.length ? (
           <div className="attachment-list" style={{ marginBottom: '20px' }}>
-            {activeProject.attachments.map((attachment: any) => (
+            {activeProject.attachments.map((attachment) => (
               <div className="attachment-item" key={attachment.id} style={{ background: 'var(--surface-soft)', padding: '12px 16px', borderRadius: '16px' }}>
                 <a className="link-button" href={attachment.url} rel="noreferrer" target="_blank" style={{ fontWeight: 600 }}>{attachment.label}</a>
                 <button className="ghost" onClick={() => removeAttachment(attachment.id)} type="button" style={{ padding: '6px 12px', fontSize: '0.8rem' }}>Remove</button>
