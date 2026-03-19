@@ -152,7 +152,7 @@ function InsightsViewComponent({
       {insightsMode === 'summary' ? (
         <ProjectAnatomyPanel {...{
           activeProject: safeActiveProject, analytics, outcomeLabel, outcomeSeries,
-          activeChartPoint, setActiveChartPoint, moodSeries, showCharts: false
+          activeChartPoint, setActiveChartPoint, moodSeries, showCharts: false, compactSummary: true
         }} />
       ) : (
         <div className="two-column-layout">

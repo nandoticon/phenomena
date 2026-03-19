@@ -15,15 +15,15 @@ export function PwaInstallBanner({ canInstall, isStandalone, isIos, onInstall, o
 
   return (
     <section
-      className="card panel"
+      className="card panel install-banner"
       style={{
-        marginBottom: '24px',
+        marginBottom: '18px',
         border: '1px solid rgba(255, 122, 89, 0.25)',
         background: 'linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,122,89,0.08))',
       }}
       aria-label="Install Phenomena"
     >
-      <div className="panel-head" style={{ marginBottom: '12px' }}>
+      <div className="panel-head install-banner-head" style={{ marginBottom: '10px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <Smartphone size={16} />
           <div>
@@ -34,8 +34,8 @@ export function PwaInstallBanner({ canInstall, isStandalone, isIos, onInstall, o
         <button className="ghost" type="button" onClick={onDismiss} aria-label="Dismiss install prompt">Dismiss</button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '16px', alignItems: 'start' }}>
-        <div style={{ color: 'var(--muted)', lineHeight: 1.6 }}>
+      <div className="install-banner-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '14px', alignItems: 'start' }}>
+        <div style={{ color: 'var(--muted)', lineHeight: 1.45 }}>
           <p style={{ marginTop: 0 }}>
             Install the app for a full-screen experience, offline access after the first load, and faster launch from your home screen.
           </p>
@@ -44,7 +44,7 @@ export function PwaInstallBanner({ canInstall, isStandalone, isIos, onInstall, o
           </p>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div className="install-banner-actions" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {canInstall ? (
             <button className="primary" onClick={onInstall} type="button" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
               <Download size={16} />

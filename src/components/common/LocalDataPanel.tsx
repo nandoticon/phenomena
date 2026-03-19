@@ -116,31 +116,38 @@ export function LocalDataPanel({
               <button className="ghost" onClick={() => fileInputRef.current?.click()} type="button" style={{ border: '1px dashed var(--muted)' }} aria-label="Choose a backup file to import">Import Backup</button>
               <input accept="application/json" hidden onChange={importBackup} ref={fileInputRef} type="file" />
             </div>
-            {backupHistory.length ? (
-              <div style={{ marginTop: '20px', padding: '16px', borderRadius: '20px', border: '1px solid var(--panel-border)', background: 'var(--bg)' }}>
-                <strong style={{ display: 'block', marginBottom: '8px' }}>Backup History</strong>
-                <p style={{ margin: '0 0 12px', color: 'var(--muted)', lineHeight: 1.5 }}>
-                  Recent exports stay here so you can restore a snapshot later.
-                </p>
-                <ul style={{ display: 'flex', flexDirection: 'column', gap: '10px', margin: 0 }}>
-                  {backupHistory.map((backup) => (
-                    <li key={`${backup.exportedAt}-${backup.name}`} style={{ padding: '12px', borderRadius: '16px', border: '1px solid var(--panel-border)', background: 'var(--surface-soft)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-                        <div>
-                          <strong style={{ display: 'block', marginBottom: '4px' }}>{backup.name}</strong>
-                          <span style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>
-                            {backup.exportedAt ? new Date(backup.exportedAt).toLocaleString() : 'Legacy backup'} · {backup.summary.projects} projects, {backup.summary.sessions} sessions
-                          </span>
+            <details style={{ marginTop: '20px', padding: '16px', borderRadius: '20px', border: '1px solid var(--panel-border)', background: 'var(--bg)' }}>
+              <summary style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', listStyle: 'none' }}>
+                <strong style={{ display: 'block' }}>Backup History</strong>
+                <span style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>{backupHistory.length} snapshots</span>
+              </summary>
+              {backupHistory.length ? (
+                <div style={{ marginTop: '12px' }}>
+                  <p style={{ margin: '0 0 12px', color: 'var(--muted)', lineHeight: 1.5 }}>
+                    Recent exports stay here so you can restore a snapshot later.
+                  </p>
+                  <ul style={{ display: 'flex', flexDirection: 'column', gap: '10px', margin: 0 }}>
+                    {backupHistory.map((backup) => (
+                      <li key={`${backup.exportedAt}-${backup.name}`} style={{ padding: '12px', borderRadius: '16px', border: '1px solid var(--panel-border)', background: 'var(--surface-soft)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                          <div>
+                            <strong style={{ display: 'block', marginBottom: '4px' }}>{backup.name}</strong>
+                            <span style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>
+                              {backup.exportedAt ? new Date(backup.exportedAt).toLocaleString() : 'Legacy backup'} · {backup.summary.projects} projects, {backup.summary.sessions} sessions
+                            </span>
+                          </div>
+                          <button className="ghost" type="button" onClick={() => previewBackupFromHistory(backup)} aria-label={`Restore backup ${backup.name}`}>
+                            Restore
+                          </button>
                         </div>
-                        <button className="ghost" type="button" onClick={() => previewBackupFromHistory(backup)} aria-label={`Restore backup ${backup.name}`}>
-                          Restore
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <p style={{ margin: '12px 0 0', color: 'var(--muted)' }}>No saved backup snapshots yet.</p>
+              )}
+            </details>
             {importMessage ? <div className="status ready" role="status" aria-live="polite" aria-atomic="true" style={{ marginTop: '16px', background: 'rgba(167, 224, 104, 0.15)', color: 'var(--success)' }}>{importMessage}</div> : null}
           </div>
         </div>
@@ -155,63 +162,73 @@ export function LocalDataPanel({
         </div>
 
         <div className="utility-grid">
-          <div style={{ padding: '16px', background: 'var(--surface-soft)', borderRadius: '24px', border: '1px solid var(--panel-border)' }}>
-            <h3 style={{ margin: '0 0 12px', fontSize: '1rem', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '6px' }}><Trash2 size={16} /> Sessions</h3>
-            <p style={{ color: 'var(--muted)', fontSize: '0.9rem', marginBottom: '14px', lineHeight: 1.5 }}>
-              Remove old session history from the synced workspace. Keep recent work in the cloud and trim older entries from this browser.
-            </p>
-            <label className="input-block compact" htmlFor={sessionRetentionId} style={{ padding: 0, marginBottom: '12px', background: 'transparent', border: 'none' }}>
-              <span style={{ marginBottom: '8px' }}>Delete sessions older than</span>
-              <input
-                id={sessionRetentionId}
-                style={{ background: 'var(--input-bg)' }}
-                onChange={(event) => setSessionRetentionDays(event.target.value)}
-                type="number"
-                min="1"
-                max="3650"
-                value={sessionRetentionDays}
-              />
-            </label>
-            <button className="ghost" onClick={openSessionCleanup} type="button" style={{ border: '1px solid var(--panel-border)' }} aria-label={`Review cleanup for sessions older than ${sessionRetentionDays || '180'} days`}>
-              Review Session Cleanup
-            </button>
-          </div>
-
-          <div style={{ padding: '16px', background: 'var(--surface-soft)', borderRadius: '24px', border: '1px solid var(--panel-border)' }}>
-            <h3 style={{ margin: '0 0 12px', fontSize: '1rem', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '6px' }}><FileText size={16} /> Backups</h3>
-            <p style={{ color: 'var(--muted)', fontSize: '0.9rem', marginBottom: '14px', lineHeight: 1.5 }}>
-              Prune local backup history in this browser without changing the imported snapshot files on disk.
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', marginBottom: '12px' }}>
-              <label className="input-block compact" htmlFor={backupRetentionDaysId} style={{ padding: 0, background: 'transparent', border: 'none' }}>
-                <span style={{ marginBottom: '8px' }}>Delete backups older than</span>
+          <details style={{ padding: '16px', background: 'var(--surface-soft)', borderRadius: '24px', border: '1px solid var(--panel-border)' }}>
+            <summary style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', listStyle: 'none' }}>
+              <h3 style={{ margin: '0', fontSize: '1rem', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '6px' }}><Trash2 size={16} /> Sessions</h3>
+              <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>Retention</span>
+            </summary>
+            <div style={{ marginTop: '12px' }}>
+              <p style={{ color: 'var(--muted)', fontSize: '0.9rem', marginBottom: '14px', lineHeight: 1.5 }}>
+                Remove old session history from the synced workspace. Keep recent work in the cloud and trim older entries from this browser.
+              </p>
+              <label className="input-block compact" htmlFor={sessionRetentionId} style={{ padding: 0, marginBottom: '12px', background: 'transparent', border: 'none' }}>
+                <span style={{ marginBottom: '8px' }}>Delete sessions older than</span>
                 <input
-                  id={backupRetentionDaysId}
+                  id={sessionRetentionId}
                   style={{ background: 'var(--input-bg)' }}
-                  onChange={(event) => setBackupRetentionDays(event.target.value)}
+                  onChange={(event) => setSessionRetentionDays(event.target.value)}
                   type="number"
                   min="1"
                   max="3650"
-                  value={backupRetentionDays}
+                  value={sessionRetentionDays}
                 />
               </label>
-              <label className="input-block compact" htmlFor={backupRetentionCountId} style={{ padding: 0, background: 'transparent', border: 'none' }}>
-                <span style={{ marginBottom: '8px' }}>Keep most recent backups</span>
-                <input
-                  id={backupRetentionCountId}
-                  style={{ background: 'var(--input-bg)' }}
-                  onChange={(event) => setBackupRetentionCount(event.target.value)}
-                  type="number"
-                  min="1"
-                  max="100"
-                  value={backupRetentionCount}
-                />
-              </label>
+              <button className="ghost" onClick={openSessionCleanup} type="button" style={{ border: '1px solid var(--panel-border)' }} aria-label={`Review cleanup for sessions older than ${sessionRetentionDays || '180'} days`}>
+                Review Session Cleanup
+              </button>
             </div>
-            <button className="ghost" onClick={openBackupCleanup} type="button" style={{ border: '1px solid var(--panel-border)' }} aria-label={`Review cleanup for backup history older than ${backupRetentionDays || '365'} days`}>
-              Review Backup Cleanup
-            </button>
-          </div>
+          </details>
+
+          <details style={{ padding: '16px', background: 'var(--surface-soft)', borderRadius: '24px', border: '1px solid var(--panel-border)' }}>
+            <summary style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', listStyle: 'none' }}>
+              <h3 style={{ margin: '0', fontSize: '1rem', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '6px' }}><FileText size={16} /> Backups</h3>
+              <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>Cleanup</span>
+            </summary>
+            <div style={{ marginTop: '12px' }}>
+              <p style={{ color: 'var(--muted)', fontSize: '0.9rem', marginBottom: '14px', lineHeight: 1.5 }}>
+                Prune local backup history in this browser without changing the imported snapshot files on disk.
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', marginBottom: '12px' }}>
+                <label className="input-block compact" htmlFor={backupRetentionDaysId} style={{ padding: 0, background: 'transparent', border: 'none' }}>
+                  <span style={{ marginBottom: '8px' }}>Delete backups older than</span>
+                  <input
+                    id={backupRetentionDaysId}
+                    style={{ background: 'var(--input-bg)' }}
+                    onChange={(event) => setBackupRetentionDays(event.target.value)}
+                    type="number"
+                    min="1"
+                    max="3650"
+                    value={backupRetentionDays}
+                  />
+                </label>
+                <label className="input-block compact" htmlFor={backupRetentionCountId} style={{ padding: 0, background: 'transparent', border: 'none' }}>
+                  <span style={{ marginBottom: '8px' }}>Keep most recent backups</span>
+                  <input
+                    id={backupRetentionCountId}
+                    style={{ background: 'var(--input-bg)' }}
+                    onChange={(event) => setBackupRetentionCount(event.target.value)}
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={backupRetentionCount}
+                  />
+                </label>
+              </div>
+              <button className="ghost" onClick={openBackupCleanup} type="button" style={{ border: '1px solid var(--panel-border)' }} aria-label={`Review cleanup for backup history older than ${backupRetentionDays || '365'} days`}>
+                Review Backup Cleanup
+              </button>
+            </div>
+          </details>
         </div>
 
         <div style={{ marginTop: '16px', padding: '14px', borderRadius: '18px', border: '1px solid var(--panel-border)', background: 'var(--bg)', color: 'var(--muted)', lineHeight: 1.5 }}>
@@ -229,7 +246,7 @@ export function LocalDataPanel({
       </article>
 
       {session && profile ? (
-        <article className="card panel security-block" style={{ flex: 1 }}>
+        <article className="card panel security-block" style={{ flex: 1, padding: '16px' }}>
           <div className="panel-head">
             <div>
               <p className="eyebrow" style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '6px' }}><Key size={14} /> Security</p>

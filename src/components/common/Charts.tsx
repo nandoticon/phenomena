@@ -1,6 +1,23 @@
 import React from 'react';
 import { ChartPoint } from '../../types';
 
+function getVisibleAxisPoints(points: ChartPoint[], maxLabels = 7) {
+  if (points.length <= maxLabels) {
+    return points.map((point, index) => ({ point, index }));
+  }
+
+  const indexes = new Set<number>([0, points.length - 1]);
+  const step = (points.length - 1) / Math.max(maxLabels - 1, 1);
+
+  for (let i = 1; i < maxLabels - 1; i += 1) {
+    indexes.add(Math.round(i * step));
+  }
+
+  return Array.from(indexes)
+    .sort((a, b) => a - b)
+    .map((index) => ({ point: points[index], index }));
+}
+
 export function LineChart({
   title,
   points,
@@ -16,8 +33,28 @@ export function LineChart({
 }) {
   if (points.length === 0) {
     return (
-      <div className="chart-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '200px', borderStyle: 'dashed', opacity: 0.6 }}>
+      <div
+        className="chart-card"
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '200px', borderStyle: 'dashed', opacity: 0.6 }}
+      >
         <p style={{ fontStyle: 'italic' }}>No session data available for this range.</p>
+      </div>
+    );
+  }
+
+  const hasRealData = points.some((point) => point.value > 0);
+
+  if (!hasRealData) {
+    return (
+      <div className="chart-card chart-empty">
+        <div className="chart-head">
+          <strong>{title}</strong>
+          <span>No activity yet</span>
+        </div>
+        <div className="chart-empty-state">
+          <p>No meaningful data is available for this range yet.</p>
+          <small>Run a few sessions and this chart will show daily movement instead of zeros.</small>
+        </div>
       </div>
     );
   }
@@ -29,6 +66,7 @@ export function LineChart({
       onPointFocus?.(point);
     }
   };
+
   const path = points
     .map((point, index) => {
       const x = (index / Math.max(points.length - 1, 1)) * 100;
@@ -43,54 +81,54 @@ export function LineChart({
         <strong>{title}</strong>
         <span>Peak {max} min</span>
       </div>
-      <div style={{ position: 'relative', width: '100%', height: '220px' }}>
+      <div className="chart-body">
         <svg
-          style={{ width: '100%', height: '100%', overflow: 'visible' }}
+          className="line-chart"
           viewBox="0 0 100 100"
           preserveAspectRatio="none"
           role="graphics-document"
           aria-label={`Graph of ${title} showing trends over time`}
         >
-        <path className="line-chart-area" d={`${path} L 100 100 L 0 100 Z`} />
-        <path className="line-chart-path" d={path} style={{ stroke: accent }} />
-        {points.map((point, index) => {
-          const x = (index / Math.max(points.length - 1, 1)) * 100;
-          const y = 100 - (point.value / max) * 100;
-          return (
-            <circle
-              cx={x}
-              cy={y}
-              key={`${point.label}-${index}`}
-              r="2.8"
-              style={{ fill: accent }}
-              onMouseEnter={() => onPointFocus?.(point)}
-              onFocus={() => onPointFocus?.(point)}
-              onKeyDown={(event) => handlePointKeyDown(event, point)}
-              tabIndex={0}
-              role="button"
-              aria-label={`${point.label}: ${point.value} minutes`}
-            />
-          );
-        })}
-      </svg>
-      {activePoint ? (
-        <div className="chart-detail">
-          <strong>{activePoint.label}</strong>
-          <span>{activePoint.value} min</span>
-          {activePoint.note ? <small>{activePoint.note}</small> : null}
-        </div>
-      ) : null}
-      <div className="chart-axis">
-        {points.map((point, index) => (
-          <div key={`${point.label}-${index}`}>
-            <strong>{point.value}</strong>
-            <span>{point.label}</span>
+          <path className="line-chart-area" d={`${path} L 100 100 L 0 100 Z`} />
+          <path className="line-chart-path" d={path} style={{ stroke: accent }} />
+          {points.map((point, index) => {
+            const x = (index / Math.max(points.length - 1, 1)) * 100;
+            const y = 100 - (point.value / max) * 100;
+            return (
+              <circle
+                cx={x}
+                cy={y}
+                key={`${point.label}-${index}`}
+                r="2.8"
+                style={{ fill: accent }}
+                onMouseEnter={() => onPointFocus?.(point)}
+                onFocus={() => onPointFocus?.(point)}
+                onKeyDown={(event) => handlePointKeyDown(event, point)}
+                tabIndex={0}
+                role="button"
+                aria-label={`${point.label}: ${point.value} minutes`}
+              />
+            );
+          })}
+        </svg>
+        {activePoint ? (
+          <div className="chart-detail">
+            <strong>{activePoint.label}</strong>
+            <span>{activePoint.value} min</span>
+            {activePoint.note ? <small>{activePoint.note}</small> : null}
           </div>
-        ))}
+        ) : null}
+        <div className="chart-axis">
+          {getVisibleAxisPoints(points).map(({ point, index }) => (
+            <div key={`${point.label}-${index}`}>
+              <strong>{point.value}</strong>
+              <span>{point.label}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
 }
 
 export function BarChart({
@@ -108,7 +146,10 @@ export function BarChart({
 }) {
   if (points.length === 0) {
     return (
-      <div className="chart-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '200px', borderStyle: 'dashed', opacity: 0.6 }}>
+      <div
+        className="chart-card"
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '200px', borderStyle: 'dashed', opacity: 0.6 }}
+      >
         <p style={{ fontStyle: 'italic' }}>No session data available for this range.</p>
       </div>
     );
@@ -121,6 +162,7 @@ export function BarChart({
       onPointFocus?.(point);
     }
   };
+
   return (
     <div className="chart-card">
       <div className="chart-head">
@@ -134,7 +176,15 @@ export function BarChart({
               <strong>{point.label}</strong>
               <span>{point.note ?? `${point.value}`}</span>
             </div>
-            <div className="bar-track" onMouseEnter={() => onPointFocus?.(point)} onFocus={() => onPointFocus?.(point)} onKeyDown={(event) => handleBarKeyDown(event, point)} tabIndex={0} role="button" aria-label={`${point.label}: ${point.value}`}>
+            <div
+              className="bar-track"
+              onMouseEnter={() => onPointFocus?.(point)}
+              onFocus={() => onPointFocus?.(point)}
+              onKeyDown={(event) => handleBarKeyDown(event, point)}
+              tabIndex={0}
+              role="button"
+              aria-label={`${point.label}: ${point.value}`}
+            >
               <div className="bar-fill" style={{ width: `${(point.value / max) * 100}%`, background: accent }} />
             </div>
             <span className="bar-value">{point.value}</span>

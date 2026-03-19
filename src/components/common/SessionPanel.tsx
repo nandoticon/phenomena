@@ -27,6 +27,8 @@ export function SessionPanel({
   const moodId = 'session-mood';
   const energyId = 'session-energy';
   const focusId = 'session-focus';
+  const [showAllSessions, setShowAllSessions] = React.useState(false);
+  const visibleRecentSessions = showAllSessions ? recentSessions.slice(0, 5) : recentSessions.slice(0, 3);
 
   return (
     <article className="card panel session-panel workspace-today">
@@ -48,7 +50,7 @@ export function SessionPanel({
         </div>
       </div>
 
-      <div style={{ marginBottom: '24px' }}>
+      <div className="session-focus-card" style={{ marginBottom: '24px' }}>
         <h3 style={{ fontSize: '0.95rem', color: 'var(--muted)', margin: '0 0 14px' }}>What did you accomplish in this session?</h3>
         <div className="outcome-grid">
           {outcomeOptions.map((option) => (
@@ -60,7 +62,7 @@ export function SessionPanel({
         </div>
       </div>
 
-      <div style={{ marginBottom: '24px', padding: '20px', borderRadius: '20px', background: 'var(--surface-soft)', border: '1px solid var(--panel-border)' }}>
+      <div className="session-focus-card session-focus-card-compact" style={{ marginBottom: '18px', padding: '20px', borderRadius: '20px', background: 'var(--surface-soft)', border: '1px solid var(--panel-border)' }}>
         <h3 style={{ fontSize: '0.95rem', color: 'var(--muted)', margin: '0 0 14px', display: 'flex', alignItems: 'center', gap: '6px' }}><Activity size={16} /> Current Focus</h3>
         <div className="selectors" style={{ gap: '16px' }}>
           <label htmlFor={moodId} style={{ padding: 0, background: 'transparent', border: 'none', flex: 1 }}>
@@ -102,20 +104,21 @@ export function SessionPanel({
         </div>
       </div>
 
-      <div>
+      <div className="session-rhythm-card">
         <h3 style={{ fontSize: '0.95rem', color: 'var(--text)', margin: '0 0 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           Session Rhythm
           <span style={{ color: 'var(--success)', fontWeight: 'bold' }}>{streakLabel}</span>
         </h3>
-        <div className="session-log" style={{ border: 'none', padding: 0, background: 'transparent' }}>
+        <div className="session-log session-rhythm-list" style={{ border: 'none', padding: 0, background: 'transparent' }}>
           {recentSessions.length === 0 ? (
             <p style={{ color: 'var(--muted)', fontStyle: 'italic' }}>No sessions recorded yet.</p>
           ) : (
+            <>
             <ul style={{ margin: 0 }}>
-              {recentSessions.slice(0, 5).map((entry, index: number) => (
+              {visibleRecentSessions.map((entry, index: number) => (
                 <li key={`${entry.date}-${index}`} style={{
                   borderTop: index === 0 ? 'none' : '1px solid var(--panel-border)',
-                  padding: '16px 0',
+                  padding: '12px 0',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '12px',
@@ -154,6 +157,18 @@ export function SessionPanel({
                 </li>
               ))}
             </ul>
+            {recentSessions.length > 3 ? (
+              <button
+                className="ghost"
+                onClick={() => setShowAllSessions((current) => !current)}
+                style={{ alignSelf: 'flex-start', padding: '8px 12px', borderRadius: '12px', marginTop: '4px' }}
+                aria-label={showAllSessions ? 'Show fewer recent sessions' : 'Show all recent sessions'}
+                type="button"
+              >
+                {showAllSessions ? 'Show fewer' : `Show all ${recentSessions.length} recent sessions`}
+              </button>
+            ) : null}
+            </>
           )}
         </div>
       </div>

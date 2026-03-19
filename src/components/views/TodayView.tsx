@@ -1,7 +1,8 @@
-import React, { memo, useMemo } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { BellRing } from 'lucide-react';
 import { MobileAccordion } from '../common/MobileAccordion';
+import { RememberedDisclosure } from '../common/RememberedDisclosure';
 import { TimerPanel } from '../common/TimerPanel';
 import { NotesPanel } from '../common/NotesPanel';
 import { RitualPanel } from '../common/RitualPanel';
@@ -24,6 +25,10 @@ import {
 import { createSessionDraft } from '../../utils/session';
 import type { SessionsByProjectId } from '../../utils/analytics';
 import type { AppState, Project, SessionRecord } from '../../types';
+
+const TODAY_SETUP_DISMISSED_KEY = 'phenomena-today-setup-dismissed';
+const TODAY_RITUAL_COLLAPSED_KEY = 'phenomena-today-ritual-collapsed';
+const TODAY_SESSIONS_COLLAPSED_KEY = 'phenomena-today-sessions-collapsed';
 
 interface TodayViewProps {
   activeProject: Project | undefined;
@@ -56,46 +61,76 @@ interface TodayViewProps {
 }
 
 function TodayViewComponent({
-  activeProject, state, sessionsByProject, setState, mode, secondsLeft, setSecondsLeft,
-  startSprint, resetTimer, completeSession, activateRestartMode,
-  formatTime, updateProject, sessionNote, setSessionNote,
-  restartCue, setRestartCue, deleteSession, updateSession,
-  isPaused, togglePause, toast, setToast, restoreSession, addSession
-  , sessionComposerRequest, sessionComposerProjectId
+  activeProject,
+  state,
+  sessionsByProject,
+  setState,
+  mode,
+  secondsLeft,
+  setSecondsLeft,
+  startSprint,
+  resetTimer,
+  completeSession,
+  activateRestartMode,
+  formatTime,
+  updateProject,
+  sessionNote,
+  setSessionNote,
+  restartCue,
+  setRestartCue,
+  deleteSession,
+  updateSession,
+  isPaused,
+  togglePause,
+  toast,
+  setToast,
+  restoreSession,
+  addSession,
+  sessionComposerRequest,
+  sessionComposerProjectId,
 }: TodayViewProps) {
   const safeActiveProject = activeProject ?? state.projects[0];
   const activeProjectSessions = useMemo(() => {
-    if (!safeActiveProject) return [];
+    if (!safeActiveProject) {
+      return [];
+    }
     return sessionsByProject[safeActiveProject.id] ?? [];
   }, [safeActiveProject, sessionsByProject]);
-  const [editingSession, setEditingSession] = React.useState<SessionRecord | null>(null);
-  const [sessionToDelete, setSessionToDelete] = React.useState<string | null>(null);
-  const [isAddingSession, setIsAddingSession] = React.useState(false);
-  const lastComposerRequest = React.useRef<number | null>(null);
 
-  React.useEffect(() => {
+  const [editingSession, setEditingSession] = useState<SessionRecord | null>(null);
+  const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
+  const [isAddingSession, setIsAddingSession] = useState(false);
+  const [setupDismissed, setSetupDismissed] = useState(() => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+    return window.localStorage.getItem(TODAY_SETUP_DISMISSED_KEY) === 'true';
+  });
+  const lastComposerRequest = useRef<number | null>(null);
+
+  useEffect(() => {
     if (editingSession || sessionToDelete || isAddingSession) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
     }
-    
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
         setEditingSession(null);
         setSessionToDelete(null);
         setIsAddingSession(false);
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
 
-    return () => { 
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
       document.body.style.overflow = '';
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [editingSession, sessionToDelete, isAddingSession]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (sessionComposerRequest === null || sessionComposerRequest === lastComposerRequest.current) {
       return;
     }
@@ -103,55 +138,68 @@ function TodayViewComponent({
     setIsAddingSession(true);
   }, [sessionComposerRequest]);
 
-  const recentSessions = useMemo(() => {
-    return activeProjectSessions.slice(-5).reverse();
-  }, [activeProjectSessions]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(TODAY_SETUP_DISMISSED_KEY, String(setupDismissed));
+    }
+  }, [setupDismissed]);
+
+  const recentSessions = useMemo(() => activeProjectSessions.slice(-5).reverse(), [activeProjectSessions]);
   const onboardingProject = safeActiveProject ?? state.projects[0];
 
   const analytics = useMemo(() => {
-    if (!safeActiveProject) return null;
+    if (!safeActiveProject) {
+      return null;
+    }
     return getProjectAnalytics(safeActiveProject, activeProjectSessions);
   }, [activeProjectSessions, safeActiveProject]);
 
   const coaching = useMemo(() => {
-    if (!safeActiveProject) return { message: '', evidence: '' };
+    if (!safeActiveProject) {
+      return { message: '', evidence: '' };
+    }
     return getCoachingInsight(safeActiveProject, { ...state, sessions: activeProjectSessions });
   }, [activeProjectSessions, safeActiveProject, state]);
 
   const recoveryMessage = useMemo(() => {
-    if (!safeActiveProject) return '';
+    if (!safeActiveProject) {
+      return '';
+    }
     return getRecoveryMessage(safeActiveProject);
   }, [safeActiveProject]);
 
   const restart = useMemo(() => {
-    if (!safeActiveProject) return { needed: false, daysAway: 0 };
+    if (!safeActiveProject) {
+      return { needed: false, daysAway: 0 };
+    }
     return getRestartState(safeActiveProject);
   }, [safeActiveProject]);
 
   const streakLabel = useMemo(() => {
-    if (!safeActiveProject) return '';
+    if (!safeActiveProject) {
+      return '';
+    }
     return getStreakLabel(safeActiveProject.lastCompletionDate, safeActiveProject.streak);
   }, [safeActiveProject]);
 
   const dashboard = useMemo(() => getCrossProjectSummary(state.projects, sessionsByProject), [sessionsByProject, state.projects]);
 
   const ritualPronto = useMemo(() => {
-    if (!safeActiveProject) return false;
+    if (!safeActiveProject) {
+      return false;
+    }
     return Object.values(safeActiveProject.ritualChecks).every(Boolean);
   }, [safeActiveProject]);
 
-  const readyToStart = useMemo(() => {
-    return !!activeProject;
-  }, [activeProject]);
   const hasFirstRun = state.sessions.length === 0;
-  const [showOnboardingWizard, setShowOnboardingWizard] = React.useState(() => {
+  const [showOnboardingWizard, setShowOnboardingWizard] = useState(() => {
     if (!hasFirstRun || typeof window === 'undefined') {
       return false;
     }
     return window.localStorage.getItem(ONBOARDING_STORAGE_KEY) !== 'true';
   });
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!hasFirstRun) {
       return;
     }
@@ -161,24 +209,33 @@ function TodayViewComponent({
     }
   }, [hasFirstRun]);
 
+  const handleStartSprint = useCallback(() => {
+    setSetupDismissed(true);
+    startSprint();
+  }, [startSprint]);
+
+  const handleDismissSetup = useCallback(() => {
+    setSetupDismissed(true);
+  }, []);
+
   const toggleRitual = (key: string) => {
-    updateProject((p) => ({
-      ...p,
-      ritualChecks: { ...p.ritualChecks, [key]: !p.ritualChecks[key] }
+    updateProject((project) => ({
+      ...project,
+      ritualChecks: { ...project.ritualChecks, [key]: !project.ritualChecks[key] },
     }));
   };
 
   const resetRitual = () => {
-    updateProject((p) => ({
-      ...p,
-      ritualChecks: Object.keys(p.ritualChecks).reduce<Record<string, boolean>>((acc, k) => ({ ...acc, [k]: false }), {})
+    updateProject((project) => ({
+      ...project,
+      ritualChecks: Object.keys(project.ritualChecks).reduce<Record<string, boolean>>((acc, key) => ({ ...acc, [key]: false }), {}),
     }));
   };
 
   const toggleRestartCheck = (key: string) => {
-    updateProject((p) => ({
-      ...p,
-      restartChecks: { ...p.restartChecks, [key]: !p.restartChecks[key] }
+    updateProject((project) => ({
+      ...project,
+      restartChecks: { ...project.restartChecks, [key]: !project.restartChecks[key] },
     }));
   };
 
@@ -190,12 +247,12 @@ function TodayViewComponent({
           <h1 style={{ margin: '8px 0' }}>{activeProject?.name || 'No project selected'}</h1>
           <p className="lede">{activeProject ? projectGoal(activeProject) : 'Select a project to start writing.'}</p>
 
-          {activeProject?.restartMode && (
+          {activeProject?.restartMode ? (
             <div className="alert" style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
               <BellRing size={18} />
               <span><strong>Restart mode on:</strong> Complete the recovery ritual to unlock the timer.</span>
             </div>
-          )}
+          ) : null}
         </div>
 
         <div className="hero-stats">
@@ -214,38 +271,6 @@ function TodayViewComponent({
         </div>
       </header>
 
-      {hasFirstRun && !showOnboardingWizard ? (
-        <section
-          className="card panel"
-          style={{ marginBottom: '24px', border: '1px solid var(--panel-border)', background: 'linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,122,89,0.06))' }}
-          aria-label="Getting started"
-        >
-          <div className="panel-head" style={{ marginBottom: '12px' }}>
-            <div>
-              <p className="eyebrow" style={{ color: 'var(--accent)' }}>First session setup</p>
-              <h2 style={{ margin: 0 }}>Set up your project</h2>
-            </div>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '16px', alignItems: 'start' }}>
-            <div style={{ color: 'var(--muted)', lineHeight: 1.6 }}>
-              <p style={{ marginTop: 0 }}>Your workspace already has a default project. You can begin immediately and adjust the defaults later.</p>
-              <ul style={{ margin: 0, paddingLeft: '18px' }}>
-                <li>Run a short focused sprint.</li>
-                <li>Add a return cue after the session.</li>
-                <li>Add another project only when the split is obvious.</li>
-              </ul>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <button className="primary" onClick={() => setShowOnboardingWizard(true)} type="button">Open setup</button>
-              <button className="ghost" onClick={startSprint} type="button">Start first sprint</button>
-              <p style={{ margin: 0, color: 'var(--secondary)', fontSize: '0.9rem' }}>
-                Default timers and reminders can be adjusted from Projects and Account once you have a first pass of data.
-              </p>
-            </div>
-          </div>
-        </section>
-      ) : null}
-
       {onboardingProject ? (
         <OnboardingWizard
           open={showOnboardingWizard}
@@ -257,39 +282,109 @@ function TodayViewComponent({
 
       <section className="today-two-column-layout">
         <div className="today-main-col">
-          <TimerPanel {...{
-            activeProject: safeActiveProject, mode, secondsLeft, formatTime, readyToStart,
-            isPaused, togglePause,
-            startSprint, resetTimer, completeSession, updateProject,
-            setSecondsLeft, goalLibrary
-          }} />
+          <TimerPanel
+            activeProject={safeActiveProject as Project}
+            mode={mode}
+            secondsLeft={secondsLeft}
+            formatTime={formatTime}
+            readyToStart={Boolean(activeProject)}
+            isPaused={isPaused}
+            togglePause={togglePause}
+            startSprint={handleStartSprint}
+            resetTimer={resetTimer}
+            completeSession={completeSession}
+            updateProject={updateProject}
+            setSecondsLeft={setSecondsLeft}
+            goalLibrary={goalLibrary}
+          />
+
+          {hasFirstRun && !setupDismissed && !showOnboardingWizard ? (
+            <section
+              className="card panel getting-started-panel"
+              style={{ marginBottom: '0', border: '1px solid var(--panel-border)', background: 'linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,122,89,0.06))' }}
+              aria-label="Getting started"
+            >
+              <div className="panel-head compact-panel-head" style={{ marginBottom: '10px' }}>
+                <div>
+                  <p className="eyebrow" style={{ color: 'var(--accent)' }}>First session setup</p>
+                  <h2 style={{ margin: 0 }}>Set up your project</h2>
+                </div>
+                <button className="ghost compact" onClick={handleDismissSetup} type="button" aria-label="Dismiss getting started">Dismiss</button>
+              </div>
+              <div className="getting-started-grid">
+                <div className="getting-started-copy">
+                  <p>Your workspace already has a default project. You can begin immediately and adjust the defaults later.</p>
+                  <ul>
+                    <li>Run a short focused sprint.</li>
+                    <li>Add a return cue after the session.</li>
+                    <li>Add another project only when the split is obvious.</li>
+                  </ul>
+                </div>
+                <div className="getting-started-actions">
+                  <button className="primary" onClick={() => setShowOnboardingWizard(true)} type="button">Open setup</button>
+                  <button className="ghost" onClick={handleStartSprint} type="button">Start first sprint</button>
+                  <p>Default timers and reminders can be adjusted from Projects and Account once you have a first pass of data.</p>
+                </div>
+              </div>
+            </section>
+          ) : null}
 
           <MobileAccordion title="Session Notes" defaultOpen={true}>
-            <NotesPanel {...{
-              setSessionNote, sessionNote, setRestartCue, restartCue,
-              recentSessions, analytics
-            }} />
+            <NotesPanel
+              setSessionNote={setSessionNote}
+              sessionNote={sessionNote}
+              setRestartCue={setRestartCue}
+              restartCue={restartCue}
+              recentSessions={recentSessions}
+              analytics={analytics}
+            />
           </MobileAccordion>
         </div>
 
         <div className="today-sidebar-col">
-          <MobileAccordion title="Preparation Ritual" defaultOpen={true}>
-            <RitualPanel {...{
-              ritualSteps, ritualPronto, resetRitual, toggleRitual,
-              activeProject: safeActiveProject, restart, restartSteps, activateRestartMode,
-              toggleRestartCheck
-            }} />
-          </MobileAccordion>
+          <RememberedDisclosure
+            storageKey={TODAY_RITUAL_COLLAPSED_KEY}
+            title="Preparation Ritual"
+            description={ritualPronto ? 'Ready to start.' : `${Object.values(safeActiveProject?.ritualChecks ?? {}).filter(Boolean).length}/4 steps complete.`}
+            defaultOpen={false}
+            className="workspace-disclosure"
+          >
+            <RitualPanel
+              ritualSteps={ritualSteps}
+              ritualPronto={ritualPronto}
+              resetRitual={resetRitual}
+              toggleRitual={toggleRitual}
+              activeProject={safeActiveProject as Project}
+              restart={restart}
+              restartSteps={restartSteps}
+              activateRestartMode={activateRestartMode}
+              toggleRestartCheck={toggleRestartCheck}
+            />
+          </RememberedDisclosure>
 
-          <MobileAccordion title="Recent Sessions" defaultOpen={false}>
-            <SessionPanel {...{
-              outcomeOptions, activeProject: safeActiveProject, updateProject, state, setState,
-              coaching, recoveryMessage, streakLabel, recentSessions, outcomeLabel,
-              onEditSession: (session: SessionRecord) => setEditingSession(session),
-              onDeleteSession: (id: string) => setSessionToDelete(id),
-              onAddSession: () => setIsAddingSession(true)
-            }} />
-          </MobileAccordion>
+          <RememberedDisclosure
+            storageKey={TODAY_SESSIONS_COLLAPSED_KEY}
+            title="Recent Sessions"
+            description={recentSessions.length ? `${recentSessions.length} recent entries.` : 'No sessions yet.'}
+            defaultOpen={false}
+            className="workspace-disclosure"
+          >
+            <SessionPanel
+              outcomeOptions={outcomeOptions}
+              activeProject={safeActiveProject}
+              updateProject={updateProject}
+              state={state}
+              setState={setState}
+              coaching={coaching}
+              recoveryMessage={recoveryMessage}
+              streakLabel={streakLabel}
+              recentSessions={recentSessions}
+              outcomeLabel={outcomeLabel}
+              onEditSession={(session) => setEditingSession(session)}
+              onDeleteSession={(id) => setSessionToDelete(id)}
+              onAddSession={() => setIsAddingSession(true)}
+            />
+          </RememberedDisclosure>
         </div>
       </section>
 
