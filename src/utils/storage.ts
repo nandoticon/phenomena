@@ -1,7 +1,144 @@
-import { AppState, Project, SessionRecord, LegacyAppState, ProjectAttachment, CueTheme, Mood, Energy, Focus, SessionResultado, BackupManifest, BackupPreview, AttachmentRow, ProjectRow, SessionRow } from '../types';
+import { AppState, Project, SessionRecord, LegacyAppState, ProjectAttachment, CueTheme, Mood, Energy, Focus, SessionResultado, BackupManifest, BackupPreview, AttachmentRow, ProjectRow, SessionRow, BackupRestoreSelection, BackupDiffSummary } from '../types';
 import { DEFAULT_PROJECT_ID, goalLibrary, ambientPresets, restartCheckDefaults, ritualCheckDefaults } from '../constants';
 import { getTodayKey, parseDateKey, getDayDiff } from './date';
 import { normalizeProject, normalizeSession as normalizeSessionRecord, normalizeAttachment } from './validation';
+
+export const BACKUP_HISTORY_KEY = 'phenomena-backup-history';
+
+export function defaultBackupRestoreSelection(): BackupRestoreSelection {
+  return {
+    projects: true,
+    sessions: true,
+    workspace: true,
+  };
+}
+
+export function parseBackupHistory(raw: string | null): BackupManifest[] {
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .filter((entry): entry is BackupManifest => Boolean(entry) && typeof entry === 'object' && (entry as BackupManifest).format === 'phenomena-backup-v2')
+      .slice(0, 5);
+  } catch {
+    return [];
+  }
+}
+
+export function serializeBackupHistory(history: BackupManifest[]): string {
+  return JSON.stringify(history.slice(0, 5));
+}
+
+export function compareBackupState(current: AppState, imported: AppState): BackupDiffSummary {
+  const currentProjectMap = new Map(current.projects.map((project) => [project.id, project]));
+  const importedProjectMap = new Map(imported.projects.map((project) => [project.id, project]));
+  const allProjectIds = new Set([...currentProjectMap.keys(), ...importedProjectMap.keys()]);
+
+  let projectsChanged = 0;
+  let sessionsChanged = Math.abs(imported.sessions.length - current.sessions.length);
+  let attachmentsChanged = 0;
+  const notes: string[] = [];
+
+  for (const id of allProjectIds) {
+    const currentProject = currentProjectMap.get(id);
+    const importedProject = importedProjectMap.get(id);
+
+    if (!currentProject || !importedProject) {
+      projectsChanged += 1;
+      attachmentsChanged += importedProject?.attachments.length ?? currentProject?.attachments.length ?? 0;
+      continue;
+    }
+
+    const projectChanged =
+      currentProject.name !== importedProject.name ||
+      currentProject.note !== importedProject.note ||
+      currentProject.selectedGoal !== importedProject.selectedGoal ||
+      currentProject.customGoal !== importedProject.customGoal ||
+      currentProject.sprintMinutes !== importedProject.sprintMinutes ||
+      currentProject.breakMinutes !== importedProject.breakMinutes ||
+      currentProject.reminderEnabled !== importedProject.reminderEnabled ||
+      currentProject.reminderTime !== importedProject.reminderTime ||
+      currentProject.archived !== importedProject.archived ||
+      currentProject.restartMode !== importedProject.restartMode ||
+      currentProject.cueTheme !== importedProject.cueTheme ||
+      currentProject.soundtrackUrl !== importedProject.soundtrackUrl ||
+      JSON.stringify(currentProject.ritualChecks) !== JSON.stringify(importedProject.ritualChecks) ||
+      JSON.stringify(currentProject.restartChecks) !== JSON.stringify(importedProject.restartChecks);
+
+    if (projectChanged) {
+      projectsChanged += 1;
+    }
+
+    attachmentsChanged += Math.abs(currentProject.attachments.length - importedProject.attachments.length);
+  }
+
+  const workspaceChanged =
+    current.activeProjectId !== imported.activeProjectId ||
+    current.mood !== imported.mood ||
+    current.energy !== imported.energy ||
+    current.focus !== imported.focus;
+
+  if (workspaceChanged) {
+    notes.push('Workspace defaults differ between the current copy and the backup.');
+  }
+  if (projectsChanged > 0) {
+    notes.push(`${projectsChanged} project${projectsChanged === 1 ? '' : 's'} will change.`);
+  }
+  if (sessionsChanged > 0) {
+    notes.push(`${sessionsChanged} session${sessionsChanged === 1 ? '' : 's'} differ.`);
+  }
+  if (attachmentsChanged > 0) {
+    notes.push(`${attachmentsChanged} attachment${attachmentsChanged === 1 ? '' : 's'} differ.`);
+  }
+
+  return {
+    projectsChanged,
+    sessionsChanged,
+    attachmentsChanged,
+    workspaceChanged,
+    notes,
+  };
+}
+
+export function restoreBackupState(current: AppState, imported: AppState, selection: BackupRestoreSelection): AppState {
+  const nextProjects = selection.projects ? imported.projects : current.projects;
+  const nextSessions = selection.sessions ? imported.sessions : current.sessions;
+  const nextWorkspace = selection.workspace
+    ? {
+        activeProjectId: imported.activeProjectId,
+        mood: imported.mood,
+        energy: imported.energy,
+        focus: imported.focus,
+      }
+    : {
+        activeProjectId: current.activeProjectId,
+        mood: current.mood,
+        energy: current.energy,
+        focus: current.focus,
+      };
+
+  const activeCandidates = nextProjects.filter((project) => !project.archived);
+  const validActiveProjectId =
+    nextProjects.some((project) => project.id === nextWorkspace.activeProjectId && !project.archived)
+      ? nextWorkspace.activeProjectId
+      : activeCandidates[0]?.id ?? nextProjects[0]?.id ?? current.activeProjectId;
+
+  return {
+    activeProjectId: validActiveProjectId,
+    projects: nextProjects,
+    sessions: nextSessions,
+    mood: nextWorkspace.mood,
+    energy: nextWorkspace.energy,
+    focus: nextWorkspace.focus,
+  };
+}
 
 export function createProject(id: string, name: string, note: string, defaults?: Partial<Pick<Project, 'sprintMinutes' | 'breakMinutes'>>): Project {
   return {

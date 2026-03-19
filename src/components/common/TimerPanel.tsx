@@ -24,6 +24,10 @@ export function TimerPanel({
   startSprint, resetTimer, completeSession, updateProject,
   setSecondsLeft, goalLibrary
 }: TimerPanelProps) {
+  const sprintMinutesId = 'timer-sprint-minutes';
+  const breakMinutesId = 'timer-break-minutes';
+  const customGoalId = 'timer-custom-goal';
+
   return (
     <article className="card panel sprint-panel workspace-today">
       <div className="panel-head">
@@ -40,13 +44,14 @@ export function TimerPanel({
         </div>
         <div className="goal-pills" style={{ marginBottom: '12px' }}>
           {goalLibrary.map((goal) => (
-            <button className={activeProject.selectedGoal === goal && !activeProject.customGoal ? 'pill active' : 'pill'} key={goal} onClick={() => updateProject((project) => ({ ...project, selectedGoal: goal }))} type="button">
+            <button className={activeProject.selectedGoal === goal && !activeProject.customGoal ? 'pill active' : 'pill'} key={goal} onClick={() => updateProject((project) => ({ ...project, selectedGoal: goal }))} type="button" aria-pressed={activeProject.selectedGoal === goal && !activeProject.customGoal}>
               {goal}
             </button>
           ))}
         </div>
-        <label className="input-block" style={{ padding: 0, background: 'transparent', border: 'none' }}>
+        <label className="input-block" htmlFor={customGoalId} style={{ padding: 0, background: 'transparent', border: 'none' }}>
           <input
+            id={customGoalId}
             style={{ background: 'var(--input-bg)' }}
             onChange={(event) => updateProject((project) => ({
               ...project,
@@ -68,9 +73,9 @@ export function TimerPanel({
           <strong style={{ fontSize: 'clamp(4rem, 12vw, 7rem)', lineHeight: 1, letterSpacing: '-2px' }}>{formatTime(secondsLeft)}</strong>
         </div>
         <div className="timer-controls">
-          <label style={{ padding: 0, background: 'transparent', border: 'none' }}>
+          <label htmlFor={sprintMinutesId} style={{ padding: 0, background: 'transparent', border: 'none' }}>
             <span style={{ marginBottom: '8px', color: 'var(--text)' }}>Focus Duration</span>
-            <select style={{ background: 'var(--input-bg)' }} onChange={(event) => {
+            <select id={sprintMinutesId} style={{ background: 'var(--input-bg)' }} onChange={(event) => {
               const minutes = Number(event.target.value);
               updateProject((project) => ({ ...project, sprintMinutes: minutes }));
               if (mode === 'idle') {
@@ -87,9 +92,9 @@ export function TimerPanel({
               <option value={90}>90 min</option>
             </select>
           </label>
-          <label style={{ padding: 0, background: 'transparent', border: 'none' }}>
+          <label htmlFor={breakMinutesId} style={{ padding: 0, background: 'transparent', border: 'none' }}>
             <span style={{ marginBottom: '8px', color: 'var(--text)' }}>Break Duration</span>
-            <select style={{ background: 'var(--input-bg)' }} onChange={(event) => updateProject((project) => ({ ...project, breakMinutes: Number(event.target.value) }))} value={activeProject.breakMinutes}>
+            <select id={breakMinutesId} style={{ background: 'var(--input-bg)' }} onChange={(event) => updateProject((project) => ({ ...project, breakMinutes: Number(event.target.value) }))} value={activeProject.breakMinutes}>
               <option value={3}>3 min</option>
               <option value={5}>5 min</option>
               <option value={8}>8 min</option>
@@ -99,25 +104,25 @@ export function TimerPanel({
         <div className="button-row">
           {mode === 'idle' ? (
             <>
-              <button className="primary" disabled={!readyToStart} onClick={startSprint} type="button" style={{ padding: '16px 20px', fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button className="primary" disabled={!readyToStart} onClick={startSprint} type="button" style={{ padding: '16px 20px', fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '8px' }} aria-label={activeProject.restartMode ? 'Initiate return session' : 'Start focus session'}>
                 <Play size={18} /> {activeProject.restartMode ? 'Initiate Return' : 'Start Focus'}
               </button>
-              <button className="ghost" onClick={resetTimer} type="button" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button className="ghost" onClick={resetTimer} type="button" style={{ display: 'flex', alignItems: 'center', gap: '8px' }} aria-label="Reset timer">
                 <RotateCcw size={16} /> Reset
               </button>
             </>
           ) : (
             <>
-              <button className="ghost" onClick={togglePause} type="button" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button className="ghost" onClick={togglePause} type="button" style={{ display: 'flex', alignItems: 'center', gap: '8px' }} aria-label={isPaused ? 'Resume timer' : 'Pause timer'}>
                 {isPaused ? <><Play size={18} /> Resume</> : <><Pause size={18} /> Pause</>}
               </button>
-              <button className="ghost" onClick={resetTimer} type="button" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent)' }}>
+              <button className="ghost" onClick={resetTimer} type="button" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent)' }} aria-label="Stop timer">
                 <Square size={16} /> Stop
               </button>
             </>
           )}
           {(mode === 'sprint' || mode === 'break') && (
-            <button className="success" onClick={completeSession} type="button" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button className="success" onClick={completeSession} type="button" style={{ display: 'flex', alignItems: 'center', gap: '8px' }} aria-label="Complete session">
               <Check size={18} /> Complete
             </button>
           )}

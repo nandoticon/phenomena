@@ -24,19 +24,24 @@ export function SessionPanel({
   coaching, recoveryMessage, streakLabel, recentSessions,
   outcomeLabel, onEditSession, onDeleteSession, onAddSession
 }: SessionPanelProps) {
+  const moodId = 'session-mood';
+  const energyId = 'session-energy';
+  const focusId = 'session-focus';
+
   return (
     <article className="card panel session-panel workspace-today">
       <div className="panel-head">
         <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
           <div>
-            <p className="eyebrow"><FileText size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} /> Session Log</p>
+            <p className="eyebrow"><FileText size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} /> Recent Sessions</p>
             <h2>Session Details</h2>
           </div>
           <button 
             className="ghost compact" 
             onClick={() => onAddSession && onAddSession()}
-            title="Add Manual Entry"
             style={{ padding: '8px', borderRadius: '10px' }}
+            aria-label="Add manual session entry"
+            type="button"
           >
             <Plus size={18} />
           </button>
@@ -47,7 +52,7 @@ export function SessionPanel({
         <h3 style={{ fontSize: '0.95rem', color: 'var(--muted)', margin: '0 0 14px' }}>What did you accomplish in this session?</h3>
         <div className="outcome-grid">
           {outcomeOptions.map((option) => (
-            <button className={activeProject?.sessionOutcome === option.value ? 'outcome active' : 'outcome'} key={option.value} onClick={() => updateProject((project) => ({ ...project, sessionOutcome: option.value }))} type="button">
+            <button className={activeProject?.sessionOutcome === option.value ? 'outcome active' : 'outcome'} key={option.value} onClick={() => updateProject((project) => ({ ...project, sessionOutcome: option.value }))} type="button" aria-pressed={activeProject?.sessionOutcome === option.value}>
               <strong>{option.label}</strong>
               <span style={{ fontSize: '0.85rem' }}>{option.detail}</span>
             </button>
@@ -58,26 +63,26 @@ export function SessionPanel({
       <div style={{ marginBottom: '24px', padding: '20px', borderRadius: '20px', background: 'var(--surface-soft)', border: '1px solid var(--panel-border)' }}>
         <h3 style={{ fontSize: '0.95rem', color: 'var(--muted)', margin: '0 0 14px', display: 'flex', alignItems: 'center', gap: '6px' }}><Activity size={16} /> Current Focus</h3>
         <div className="selectors" style={{ gap: '16px' }}>
-          <label style={{ padding: 0, background: 'transparent', border: 'none', flex: 1 }}>
+          <label htmlFor={moodId} style={{ padding: 0, background: 'transparent', border: 'none', flex: 1 }}>
             <span style={{ marginBottom: '8px' }}>Mood</span>
-            <select style={{ background: 'var(--input-bg)' }} onChange={(event) => setState((current) => ({ ...current, mood: event.target.value as AppState['mood'] }))} value={state.mood}>
+            <select id={moodId} style={{ background: 'var(--input-bg)' }} onChange={(event) => setState((current) => ({ ...current, mood: event.target.value as AppState['mood'] }))} value={state.mood}>
               <option value="foggy">Foggy</option>
               <option value="steady">Steady</option>
               <option value="restless">Restless</option>
               <option value="anxious">Anxious</option>
             </select>
           </label>
-          <label style={{ padding: 0, background: 'transparent', border: 'none', flex: 1 }}>
+          <label htmlFor={energyId} style={{ padding: 0, background: 'transparent', border: 'none', flex: 1 }}>
             <span style={{ marginBottom: '8px' }}>Energy</span>
-            <select style={{ background: 'var(--input-bg)' }} onChange={(event) => setState((current) => ({ ...current, energy: event.target.value as AppState['energy'] }))} value={state.energy}>
+            <select id={energyId} style={{ background: 'var(--input-bg)' }} onChange={(event) => setState((current) => ({ ...current, energy: event.target.value as AppState['energy'] }))} value={state.energy}>
               <option value="low">Low</option>
               <option value="medium">Medium</option>
               <option value="high">High</option>
             </select>
           </label>
-          <label style={{ padding: 0, background: 'transparent', border: 'none', flex: 1 }}>
+          <label htmlFor={focusId} style={{ padding: 0, background: 'transparent', border: 'none', flex: 1 }}>
             <span style={{ marginBottom: '8px' }}>Focus</span>
-            <select style={{ background: 'var(--input-bg)' }} onChange={(event) => setState((current) => ({ ...current, focus: event.target.value as AppState['focus'] }))} value={state.focus}>
+            <select id={focusId} style={{ background: 'var(--input-bg)' }} onChange={(event) => setState((current) => ({ ...current, focus: event.target.value as AppState['focus'] }))} value={state.focus}>
               <option value="scattered">Scattered</option>
               <option value="usable">Usable</option>
               <option value="sharp">Sharp</option>
@@ -89,7 +94,7 @@ export function SessionPanel({
           <strong style={{ color: 'var(--secondary)', display: 'block', marginBottom: '4px' }}>Focus Snapshot:</strong>
           <span style={{ color: 'var(--text)', fontSize: '0.95rem', fontStyle: 'italic' }}>"{coaching.message}"</span>
           {recoveryMessage && (
-            <div style={{ marginTop: '12px', padding: '12px', background: 'rgba(255, 122, 89, 0.08)', borderRadius: '12px', border: '1px solid rgba(255, 122, 89, 0.15)' }}>
+            <div role="status" aria-live="polite" aria-atomic="true" style={{ marginTop: '12px', padding: '12px', background: 'rgba(255, 122, 89, 0.08)', borderRadius: '12px', border: '1px solid rgba(255, 122, 89, 0.15)' }}>
               <strong style={{ display: 'block', color: 'var(--accent)', fontSize: '0.85rem', marginBottom: '4px' }}>Inactivity Alert</strong>
               <span style={{ fontSize: '0.9rem' }}>{recoveryMessage}</span>
             </div>
@@ -131,7 +136,8 @@ export function SessionPanel({
                       className="ghost"
                       onClick={() => onEditSession(entry)}
                       style={{ padding: '8px', borderRadius: '10px', background: 'var(--surface-soft)' }}
-                      title="Edit session"
+                      aria-label={`Edit session from ${entry.date}`}
+                      type="button"
                     >
                       <Pencil size={14} />
                     </button>
@@ -139,7 +145,8 @@ export function SessionPanel({
                       className="ghost"
                       onClick={() => onDeleteSession(entry.id)}
                       style={{ padding: '8px', borderRadius: '10px', background: 'var(--surface-soft)', color: 'var(--accent)' }}
-                      title="Delete session"
+                      aria-label={`Delete session from ${entry.date}`}
+                      type="button"
                     >
                       <Trash2 size={14} />
                     </button>

@@ -18,6 +18,12 @@ export function PreferencesPanel({
   updateProfile, profileMessage
 }: PreferencesPanelProps) {
   if (!session || !profile) return null;
+  const themeId = 'workspace-theme';
+  const displayNameId = 'profile-display-name';
+  const timezoneId = 'profile-timezone';
+  const sprintMinutesId = 'default-sprint-minutes';
+  const breakMinutesId = 'default-break-minutes';
+  const reminderChannelId = 'reminder-channel';
 
   return (
     <article className="card panel settings-panel" style={{ marginTop: '24px', padding: '16px' }}>
@@ -29,15 +35,17 @@ export function PreferencesPanel({
             These settings act as defaults for all new projects and sync across your devices.
           </p>
         </div>
-        <button className="primary" onClick={applyProfileDefaultsToActiveProject} type="button" style={{ padding: '10px 20px', borderRadius: '16px', fontSize: '0.85rem', width: 'auto' }}>Apply to Current Project</button>
+        <button className="primary" onClick={applyProfileDefaultsToActiveProject} type="button" style={{ padding: '10px 20px', borderRadius: '16px', fontSize: '0.85rem', width: 'auto' }} aria-label="Apply workspace defaults to the active project">
+          Apply to Active Project
+        </button>
       </div>
 
       <div className="settings-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '16px' }}>
         <div style={{ padding: '16px', background: 'var(--surface-soft)', borderRadius: '24px', border: '1px solid var(--panel-border)' }}>
           <h3 style={{ fontSize: '1.1rem', marginBottom: '20px', borderBottom: '1px solid var(--panel-border)', paddingBottom: '12px' }}>Appearance</h3>
-          <label className="input-block compact" style={{ padding: 0, background: 'transparent', border: 'none' }}>
+          <label className="input-block compact" htmlFor={themeId} style={{ padding: 0, background: 'transparent', border: 'none' }}>
             <span style={{ marginBottom: '8px' }}>Theme</span>
-            <select style={{ background: 'var(--input-bg)' }} onChange={(event) => setUiTheme(event.target.value as UiTheme)} value={uiTheme}>
+            <select id={themeId} style={{ background: 'var(--input-bg)' }} onChange={(event) => setUiTheme(event.target.value as UiTheme)} value={uiTheme}>
               <option value="dark">Dark</option>
               <option value="light">Light</option>
             </select>
@@ -46,22 +54,22 @@ export function PreferencesPanel({
 
         <div style={{ padding: '16px', background: 'var(--surface-soft)', borderRadius: '24px', border: '1px solid var(--panel-border)' }}>
           <h3 style={{ fontSize: '1.1rem', marginBottom: '20px', borderBottom: '1px solid var(--panel-border)', paddingBottom: '12px' }}>Profile</h3>
-          <label className="input-block" style={{ padding: 0, marginBottom: '20px', background: 'transparent', border: 'none' }}>
+          <label className="input-block" htmlFor={displayNameId} style={{ padding: 0, marginBottom: '20px', background: 'transparent', border: 'none' }}>
             <span style={{ marginBottom: '8px' }}>Display Name</span>
-            <input style={{ background: 'var(--input-bg)' }} onChange={(event) => updateProfile('display_name', event.target.value || null)} type="text" value={profile.display_name ?? ''} placeholder="Your desk name" />
+            <input id={displayNameId} style={{ background: 'var(--input-bg)' }} onChange={(event) => updateProfile('display_name', event.target.value || null)} type="text" value={profile.display_name ?? ''} placeholder="Your desk name" />
           </label>
-          <label className="input-block" style={{ padding: 0, background: 'transparent', border: 'none' }}>
+          <label className="input-block" htmlFor={timezoneId} style={{ padding: 0, background: 'transparent', border: 'none' }}>
             <span style={{ marginBottom: '8px' }}>Timezone</span>
-            <input style={{ background: 'var(--input-bg)' }} onChange={(event) => updateProfile('timezone', event.target.value)} type="text" value={profile.timezone} placeholder="America/New_York" />
+            <input id={timezoneId} style={{ background: 'var(--input-bg)' }} onChange={(event) => updateProfile('timezone', event.target.value)} type="text" value={profile.timezone} placeholder="America/New_York" />
           </label>
         </div>
 
         <div style={{ padding: '16px', background: 'var(--surface-soft)', borderRadius: '24px', border: '1px solid var(--panel-border)' }}>
           <h3 style={{ fontSize: '1.1rem', marginBottom: '20px', borderBottom: '1px solid var(--panel-border)', paddingBottom: '12px' }}>Timer Defaults</h3>
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-            <label className="input-block compact" style={{ flex: '1 1 120px', padding: 0, background: 'transparent', border: 'none' }}>
+            <label className="input-block compact" htmlFor={sprintMinutesId} style={{ flex: '1 1 120px', padding: 0, background: 'transparent', border: 'none' }}>
               <span style={{ marginBottom: '8px' }}>Default Sprint Duration</span>
-              <select style={{ background: 'var(--input-bg)' }} onChange={(event) => updateProfile('default_sprint_minutes', Number(event.target.value))} value={profile.default_sprint_minutes}>
+              <select id={sprintMinutesId} style={{ background: 'var(--input-bg)' }} onChange={(event) => updateProfile('default_sprint_minutes', Number(event.target.value))} value={profile.default_sprint_minutes}>
                 <option value={10}>10 min</option>
                 <option value={15}>15 min</option>
                 <option value={20}>20 min</option>
@@ -69,9 +77,9 @@ export function PreferencesPanel({
                 <option value={45}>45 min</option>
               </select>
             </label>
-            <label className="input-block compact" style={{ flex: '1 1 120px', padding: 0, background: 'transparent', border: 'none' }}>
+            <label className="input-block compact" htmlFor={breakMinutesId} style={{ flex: '1 1 120px', padding: 0, background: 'transparent', border: 'none' }}>
               <span style={{ marginBottom: '8px' }}>Default Break Duration</span>
-              <select style={{ background: 'var(--input-bg)' }} onChange={(event) => updateProfile('default_break_minutes', Number(event.target.value))} value={profile.default_break_minutes}>
+              <select id={breakMinutesId} style={{ background: 'var(--input-bg)' }} onChange={(event) => updateProfile('default_break_minutes', Number(event.target.value))} value={profile.default_break_minutes}>
                 <option value={3}>3 min</option>
                 <option value={5}>5 min</option>
                 <option value={8}>8 min</option>
@@ -82,9 +90,9 @@ export function PreferencesPanel({
 
         <div style={{ padding: '16px', background: 'var(--surface-soft)', borderRadius: '24px', border: '1px solid var(--panel-border)' }}>
           <h3 style={{ fontSize: '1.1rem', marginBottom: '20px', borderBottom: '1px solid var(--panel-border)', paddingBottom: '12px' }}>Email Notifications</h3>
-          <label className="input-block compact" style={{ padding: 0, marginBottom: '16px', background: 'transparent', border: 'none' }}>
+          <label className="input-block compact" htmlFor={reminderChannelId} style={{ padding: 0, marginBottom: '16px', background: 'transparent', border: 'none' }}>
             <span style={{ marginBottom: '8px' }}>Notification Channel</span>
-            <select style={{ background: 'var(--input-bg)' }} onChange={(event) => updateProfile('reminder_channel', event.target.value as Profile['reminder_channel'])} value={profile.reminder_channel}>
+            <select id={reminderChannelId} style={{ background: 'var(--input-bg)' }} onChange={(event) => updateProfile('reminder_channel', event.target.value as Profile['reminder_channel'])} value={profile.reminder_channel}>
               <option value="browser">Browser only</option>
               <option value="email">Email only</option>
               <option value="both">Both browser and email</option>

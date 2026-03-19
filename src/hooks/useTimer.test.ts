@@ -1,5 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { SetStateAction } from 'react';
 import type { AppState, Project } from '../types';
 import { createProject } from '../utils/storage';
 import { useTimer } from './useTimer';
@@ -20,8 +21,10 @@ describe('useTimer', () => {
       focus: 'usable',
     };
 
-    const setState = vi.fn((updater: any) => {
-      capturedState = typeof updater === 'function' ? updater(capturedState) : updater;
+    const setState = vi.fn((updater: SetStateAction<AppState>) => {
+      capturedState = typeof updater === 'function'
+        ? (updater as (state: AppState) => AppState)(capturedState)
+        : updater;
     });
     const updateProject = vi.fn();
     const setSessionNote = vi.fn();

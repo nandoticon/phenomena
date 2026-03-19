@@ -65,6 +65,7 @@ describe('analytics helpers', () => {
     expect(analytics.completionRate).toBe(50);
     expect(analytics.bestRecoveryWindow).toBe('1 day');
     expect(analytics.trendAnnotations.length).toBeGreaterThan(0);
+    expect(analytics.trendDrivers.length).toBeGreaterThan(0);
   });
 
   it('adds explanatory notes to comparison series', () => {

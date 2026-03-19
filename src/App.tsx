@@ -9,7 +9,7 @@ import {
   Mood, Energy, Focus, SessionResultado, SessionRecord,
   CueTheme, WorkspaceView, UiTheme, Project, Profile,
   AppState, ChartPoint, ChartRange, ComparisonMetric,
-  HistoryProjectFilter, HistoryOutcomeFilter, NotificationState, ReminderEvent, BackupPreview
+  HistoryProjectFilter, HistoryOutcomeFilter, NotificationState, ReminderEvent, BackupPreview, BackupManifest, BackupRestoreSelection, BackupDiffSummary
 } from './types';
 
 import {
@@ -19,9 +19,9 @@ import {
 } from './constants';
 
 import { getTodayKey, getTimeKey, formatCloudTimestamp } from './utils/date';
-import { parseStoredState, parseBackupPreview, createBackupManifest, serializeSyncState, createProject } from './utils/storage';
+import { parseStoredState, parseBackupPreview, createBackupManifest, serializeSyncState, createProject, BACKUP_HISTORY_KEY, parseBackupHistory, serializeBackupHistory, compareBackupState, defaultBackupRestoreSelection, restoreBackupState } from './utils/storage';
 import { normalizeProject, normalizeSession as normalizeSessionRecord, normalizeUrl } from './utils/validation';
-import { getReminderStatus, shouldTriggerReminder, getProjectAttachmentCount } from './utils/analytics';
+import { getReminderStatus, shouldTriggerReminder, getProjectAttachmentCount, groupSessionsByProject } from './utils/analytics';
 
 import { TodayViewSkeleton } from './components/common/Skeleton';
 
@@ -42,7 +42,9 @@ export default function App() {
   const [importMessage, setImportMessage] = useState('');
   const [reminderEvents, setReminderEvents] = useState<ReminderEvent[]>([]);
   const [backupName, setBackupName] = useState('Phenomena backup');
+  const [backupHistory, setBackupHistory] = useState<BackupManifest[]>(() => parseBackupHistory(localStorage.getItem(BACKUP_HISTORY_KEY)));
   const [importPreview, setImportPreview] = useState<BackupPreview | null>(null);
+  const [backupRestoreSelection, setBackupRestoreSelection] = useState<BackupRestoreSelection>(defaultBackupRestoreSelection());
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectNote, setNewProjectNote] = useState('');
   const [sessionNote, setSessionNote] = useState('');
@@ -254,6 +256,7 @@ export default function App() {
     a.download = `${(backup.name || 'phenomena-backup').toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${getTodayKey()}.json`;
     a.click();
     URL.revokeObjectURL(url);
+    setBackupHistory((current) => [backup, ...current.filter((entry) => entry.exportedAt !== backup.exportedAt)].slice(0, 5));
   }, [backupName, state]);
 
   const importBackup = useCallback((e: ChangeEvent<HTMLInputElement>) => {
@@ -264,6 +267,7 @@ export default function App() {
       const preview = parseBackupPreview(ev.target?.result as string);
       if (preview) {
         setImportPreview(preview);
+        setBackupRestoreSelection(defaultBackupRestoreSelection());
         showImportMessage('Backup loaded. Review the preview before restoring.', 5000);
       } else {
         showImportMessage('Invalid backup file.', 4000);
@@ -274,15 +278,37 @@ export default function App() {
 
   const confirmImportBackup = useCallback(() => {
     if (!importPreview) return;
-    setState(importPreview.state);
+    setState((current) => restoreBackupState(current, importPreview.state, backupRestoreSelection));
+    setBackupHistory((current) => [createBackupManifest(importPreview.state, importPreview.name), ...current].slice(0, 5));
     setImportPreview(null);
+    setBackupRestoreSelection(defaultBackupRestoreSelection());
     showImportMessage('Backup restored successfully.', 4000);
-  }, [importPreview, setState, showImportMessage]);
+  }, [backupRestoreSelection, importPreview, setState, showImportMessage]);
 
   const cancelImportBackup = useCallback(() => {
     setImportPreview(null);
+    setBackupRestoreSelection(defaultBackupRestoreSelection());
     showImportMessage('Backup restore cancelled.', 3000);
   }, [showImportMessage]);
+
+  const previewBackupFromHistory = useCallback((backup: BackupManifest) => {
+    setImportPreview({
+      name: backup.name,
+      exportedAt: backup.exportedAt,
+      summary: backup.summary,
+      state: backup.state,
+      format: backup.format,
+    });
+    setBackupRestoreSelection(defaultBackupRestoreSelection());
+    showImportMessage(`Previewing backup "${backup.name}".`, 4000);
+  }, [showImportMessage]);
+
+  const backupDiff = useMemo<BackupDiffSummary | null>(() => {
+    if (!importPreview) {
+      return null;
+    }
+    return compareBackupState(state, importPreview.state);
+  }, [importPreview, state]);
 
   useEffect(() => {
     const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
@@ -299,6 +325,10 @@ export default function App() {
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [hydrated, state]);
+
+  useEffect(() => {
+    localStorage.setItem(BACKUP_HISTORY_KEY, serializeBackupHistory(backupHistory));
+  }, [backupHistory]);
 
   useEffect(() => {
     document.body.classList.toggle('theme-light', uiTheme === 'light');
@@ -325,6 +355,8 @@ export default function App() {
     acc[project.id] = project;
     return acc;
   }, {}), [state.projects]);
+
+  const sessionsByProject = useMemo(() => groupSessionsByProject(state.sessions), [state.sessions]);
 
   const activeProjetos = useMemo(() => state.projects.filter((project) => !project.archived), [state.projects]);
   const archivedProjetos = useMemo(() => state.projects.filter((project) => project.archived), [state.projects]);
@@ -486,6 +518,7 @@ export default function App() {
               key="today"
               activeProject={activeProject}
               state={state}
+              sessionsByProject={sessionsByProject}
               setState={setState}
               mode={mode}
               secondsLeft={secondsLeft}
@@ -562,6 +595,7 @@ export default function App() {
               activeChartPoint={activeChartPoint}
               setActiveChartPoint={setActiveChartPoint}
               projectNameMap={projectNameMap}
+              sessionsByProject={sessionsByProject}
               addSession={addSession}
               updateSession={updateSession}
               deleteSession={deleteSession}
@@ -623,9 +657,14 @@ export default function App() {
               importBackup={importBackup}
               backupName={backupName}
               setBackupName={setBackupName}
+              backupHistory={backupHistory}
               importPreview={importPreview}
+              backupDiff={backupDiff}
+              backupRestoreSelection={backupRestoreSelection}
+              setBackupRestoreSelection={setBackupRestoreSelection}
               confirmImportBackup={confirmImportBackup}
               cancelImportBackup={cancelImportBackup}
+              previewBackupFromHistory={previewBackupFromHistory}
               reminderEvents={reminderEvents}
               acknowledgeReminder={acknowledgeReminder}
               refreshReminderInbox={refreshReminderInbox}

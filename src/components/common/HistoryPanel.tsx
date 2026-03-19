@@ -34,11 +34,12 @@ export function HistoryPanel({
         <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
           <div>
             <p className="eyebrow"><Clock size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} /> History</p>
-            <h2>Session Logs</h2>
+            <h2>Session History</h2>
           </div>
           <button 
             className="primary compact" 
             onClick={onAddSession}
+            aria-label="Add manual session entry"
             style={{ padding: '8px 16px', borderRadius: '12px', fontSize: '0.85rem' }}
           >
             <Plus size={16} style={{ marginRight: '6px' }} /> Manual Entry
@@ -49,34 +50,38 @@ export function HistoryPanel({
       <div className="history-controls" style={{ background: 'var(--surface-soft)', padding: '24px', borderRadius: '24px', marginBottom: '24px', border: '1px solid var(--panel-border)' }}>
         <div style={{ position: 'relative', marginBottom: '20px' }}>
           <Search size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' }} />
+          <label htmlFor="history-search" className="sr-only">Search sessions</label>
           <input 
+            id="history-search"
             style={{ background: 'var(--input-bg)', border: '1px solid var(--panel-border)', padding: '16px 48px', width: '100%', borderRadius: '16px', fontSize: '1rem' }} 
             onChange={(event) => setHistoryQuery(event.target.value)} 
             type="text" 
             value={historyQuery} 
             placeholder="Search notes and cues..." 
+            aria-label="Search session history"
           />
           {historyQuery && (
             <button 
               onClick={() => setHistoryQuery('')}
               style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: '1.2rem', padding: '4px' }}
               type="button"
+              aria-label="Clear search"
             >
               ✕
             </button>
           )}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '16px' }}>
-          <label className="input-block compact" style={{ padding: 0, background: 'transparent', border: 'none' }}>
+          <label className="input-block compact" htmlFor="history-project-filter" style={{ padding: 0, background: 'transparent', border: 'none' }}>
             <span style={{ marginBottom: '8px' }}>Filter by Project</span>
-            <select style={{ background: 'var(--input-bg)' }} onChange={(event) => setHistoryProjectFilter(event.target.value as HistoryProjectFilter)} value={historyProjectFilter}>
+            <select id="history-project-filter" style={{ background: 'var(--input-bg)' }} onChange={(event) => setHistoryProjectFilter(event.target.value as HistoryProjectFilter)} value={historyProjectFilter} aria-label="Filter session history by project">
               <option value="active">Active: "{activeProject?.name ?? 'None'}"</option>
               <option value="all">All Projects</option>
             </select>
           </label>
-          <label className="input-block compact" style={{ padding: 0, background: 'transparent', border: 'none' }}>
+          <label className="input-block compact" htmlFor="history-outcome-filter" style={{ padding: 0, background: 'transparent', border: 'none' }}>
             <span style={{ marginBottom: '8px' }}>Filter by Outcome</span>
-            <select style={{ background: 'var(--input-bg)' }} onChange={(event) => setHistoryOutcomeFilter(event.target.value as HistoryOutcomeFilter)} value={historyOutcomeFilter}>
+            <select id="history-outcome-filter" style={{ background: 'var(--input-bg)' }} onChange={(event) => setHistoryOutcomeFilter(event.target.value as HistoryOutcomeFilter)} value={historyOutcomeFilter} aria-label="Filter session history by outcome">
               <option value="all">All Outcomes</option>
               {outcomeOptions.map((option) => (
                 <option key={option.value} value={option.value}>{option.label}</option>
@@ -113,6 +118,7 @@ export function HistoryPanel({
                         className="ghost compact" 
                         onClick={() => onEditSession(entry)}
                         title="Edit Session"
+                        aria-label={`Edit session on ${entry.date} for ${projectNameMap[entry.projectId] || 'Unknown project'}`}
                         style={{ padding: '6px', borderRadius: '8px' }}
                       >
                         <Pencil size={14} />
@@ -121,6 +127,7 @@ export function HistoryPanel({
                         className="ghost compact" 
                         onClick={() => onDeleteSession(entry.id)}
                         title="Delete Session"
+                        aria-label={`Delete session on ${entry.date} for ${projectNameMap[entry.projectId] || 'Unknown project'}`}
                         style={{ padding: '6px', borderRadius: '8px', color: '#ff6b6b' }}
                       >
                         <Trash2 size={14} />

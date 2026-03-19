@@ -56,7 +56,7 @@ export function CloudPanel({
           <h1 style={{ fontSize: '1.4rem', margin: 0 }}>Account & Devices</h1>
         </div>
         {hasSupabaseConfig && session && (
-          <div style={{ padding: '4px 12px', background: 'rgba(167, 224, 104, 0.1)', borderRadius: '12px', border: '1px solid var(--success)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div role="status" aria-live="polite" aria-atomic="true" style={{ padding: '4px 12px', background: 'rgba(167, 224, 104, 0.1)', borderRadius: '12px', border: '1px solid var(--success)', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Cloud size={14} color="var(--success)" />
             <strong style={{ color: 'var(--success)', fontSize: '0.8rem', textTransform: 'uppercase' }}>ONLINE</strong>
           </div>
@@ -88,6 +88,7 @@ export function CloudPanel({
                   onClick={() => setAuthView('sign-in')}
                   type="button"
                   style={{ flex: 1, padding: '10px' }}
+                  aria-pressed={authView === 'sign-in'}
                 >
                   Sign In
                 </button>
@@ -96,6 +97,7 @@ export function CloudPanel({
                   onClick={() => setAuthView('sign-up')}
                   type="button"
                   style={{ flex: 1, padding: '10px' }}
+                  aria-pressed={authView === 'sign-up'}
                 >
                   Create Account
                 </button>
@@ -117,18 +119,18 @@ export function CloudPanel({
                 </label>
               ) : null}
               <div className="button-row" style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {authView === 'sign-in' ? <button className="primary" onClick={signInWithPassword} type="button" style={{ padding: '16px' }}>Sign In</button> : null}
-                {authView === 'sign-up' ? <button className="primary" onClick={signUpWithPassword} type="button" style={{ padding: '16px' }}>Sign Up</button> : null}
-                {authView === 'forgot-password' ? <button className="primary" onClick={sendPasswordReset} type="button" style={{ padding: '16px' }}>Send Reset Link</button> : null}
-                {authView === 'recovery' ? <button className="primary" onClick={updatePassword} type="button" style={{ padding: '16px' }}>Update Password</button> : null}
-                <button className="ghost" onClick={() => setAuthView(authView === 'forgot-password' ? 'sign-in' : 'forgot-password')} type="button" style={{ marginTop: '8px' }}>
+                {authView === 'sign-in' ? <button className="primary" onClick={signInWithPassword} type="button" style={{ padding: '16px' }} aria-label="Sign in with email and password">Sign In</button> : null}
+                {authView === 'sign-up' ? <button className="primary" onClick={signUpWithPassword} type="button" style={{ padding: '16px' }} aria-label="Create an account with email and password">Sign Up</button> : null}
+                {authView === 'forgot-password' ? <button className="primary" onClick={sendPasswordReset} type="button" style={{ padding: '16px' }} aria-label="Send a password reset link">Send Reset Link</button> : null}
+                {authView === 'recovery' ? <button className="primary" onClick={updatePassword} type="button" style={{ padding: '16px' }} aria-label="Update your account password">Update Password</button> : null}
+                <button className="ghost" onClick={() => setAuthView(authView === 'forgot-password' ? 'sign-in' : 'forgot-password')} type="button" style={{ marginTop: '8px' }} aria-label={authView === 'forgot-password' ? 'Return to sign in form' : 'Open password reset form'}>
                   {authView === 'forgot-password' ? 'Back to Sign In' : 'Forgot password?'}
                 </button>
               </div>
             </div>
           ) : (
             <div className="button-row cloud-actions" style={{ gridTemplateColumns: '1fr', gap: '12px' }}>
-              <button className="ghost" onClick={signOut} type="button" style={{ color: 'var(--accent)', border: '1px solid rgba(255, 122, 89, 0.4)' }}>Sign Out</button>
+              <button className="ghost" onClick={signOut} type="button" style={{ color: 'var(--accent)', border: '1px solid rgba(255, 122, 89, 0.4)' }} aria-label="Sign out of the cloud account">Sign Out</button>
             </div>
           )}
 
@@ -181,9 +183,9 @@ export function CloudPanel({
               ) : null}
             </div>
             <div className="button-row" style={{ display: 'grid', gap: '10px' }}>
-              <button className="ghost" onClick={pullCloudState} type="button">Use cloud copy</button>
-              <button className="primary" onClick={pushLocalState} type="button">Merge local changes</button>
-              <button className="ghost" onClick={replaceCloudWithLocal} type="button" style={{ border: '1px solid rgba(255, 122, 89, 0.35)' }}>Replace cloud with local</button>
+              <button className="ghost" onClick={pullCloudState} type="button" aria-label="Discard local copy and use the cloud version">Use cloud copy</button>
+              <button className="primary" onClick={pushLocalState} type="button" aria-label="Merge local changes into the cloud copy">Merge local changes</button>
+              <button className="ghost" onClick={replaceCloudWithLocal} type="button" style={{ border: '1px solid rgba(255, 122, 89, 0.35)' }} aria-label="Replace the cloud copy with the local copy">Replace cloud with local</button>
               </div>
             </div>
           ) : null}

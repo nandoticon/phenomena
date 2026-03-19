@@ -160,6 +160,20 @@ export interface BackupPreview {
   format: string;
 }
 
+export interface BackupRestoreSelection {
+  projects: boolean;
+  sessions: boolean;
+  workspace: boolean;
+}
+
+export interface BackupDiffSummary {
+  projectsChanged: number;
+  sessionsChanged: number;
+  attachmentsChanged: number;
+  workspaceChanged: boolean;
+  notes: string[];
+}
+
 export interface ProjectRow {
   user_id: string;
   project_id: string;

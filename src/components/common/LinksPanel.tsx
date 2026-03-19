@@ -14,6 +14,9 @@ interface LinksPanelProps {
 }
 
 export function LinksPanel({ activeProject, removeAttachment, newAttachmentLabel, setNewAttachmentLabel, newAttachmentUrl, setNewAttachmentUrl, addAttachment }: LinksPanelProps) {
+  const attachmentLabelId = 'attachment-label';
+  const attachmentUrlId = 'attachment-url';
+
   return (
     <article className="card panel attachment-panel">
       <div className="panel-head">
@@ -28,8 +31,10 @@ export function LinksPanel({ activeProject, removeAttachment, newAttachmentLabel
           <div className="attachment-list" style={{ marginBottom: '20px' }}>
             {activeProject.attachments.map((attachment) => (
               <div className="attachment-item" key={attachment.id} style={{ background: 'var(--surface-soft)', padding: '12px 16px', borderRadius: '16px' }}>
-                <a className="link-button" href={attachment.url} rel="noreferrer" target="_blank" style={{ fontWeight: 600 }}>{attachment.label}</a>
-                <button className="ghost" onClick={() => removeAttachment(attachment.id)} type="button" style={{ padding: '6px 12px', fontSize: '0.8rem' }}>Remove</button>
+                <a className="link-button" href={attachment.url} rel="noreferrer" target="_blank" aria-label={`Open ${attachment.label} in a new tab`} style={{ fontWeight: 600 }}>{attachment.label}</a>
+                <button className="ghost" onClick={() => removeAttachment(attachment.id)} type="button" style={{ padding: '6px 12px', fontSize: '0.8rem' }} aria-label={`Remove ${attachment.label}`}>
+                  Remove
+                </button>
               </div>
             ))}
           </div>
@@ -38,15 +43,17 @@ export function LinksPanel({ activeProject, removeAttachment, newAttachmentLabel
         )}
 
         <div className="attachment-form" style={{ padding: '20px', borderRadius: '20px', background: 'var(--surface-soft)', border: '1px dashed var(--panel-border)' }}>
-          <label className="input-block" style={{ padding: 0, marginBottom: '0', background: 'transparent', border: 'none' }}>
+          <label className="input-block" htmlFor={attachmentLabelId} style={{ padding: 0, marginBottom: '0', background: 'transparent', border: 'none' }}>
             <span style={{ marginBottom: '8px' }}>Link Title</span>
-            <input style={{ background: 'var(--input-bg)' }} onChange={(event) => setNewAttachmentLabel(event.target.value)} type="text" value={newAttachmentLabel} placeholder="Story Outline" />
+            <input id={attachmentLabelId} style={{ background: 'var(--input-bg)' }} onChange={(event) => setNewAttachmentLabel(event.target.value)} type="text" value={newAttachmentLabel} placeholder="Story Outline" />
           </label>
-          <label className="input-block" style={{ padding: 0, marginBottom: '0', background: 'transparent', border: 'none' }}>
+          <label className="input-block" htmlFor={attachmentUrlId} style={{ padding: 0, marginBottom: '0', background: 'transparent', border: 'none' }}>
             <span style={{ marginBottom: '8px' }}>URL</span>
-            <input style={{ background: 'var(--input-bg)' }} onChange={(event) => setNewAttachmentUrl(event.target.value)} type="url" value={newAttachmentUrl} placeholder="https://docs.google.com..." />
+            <input id={attachmentUrlId} style={{ background: 'var(--input-bg)' }} onChange={(event) => setNewAttachmentUrl(event.target.value)} type="url" value={newAttachmentUrl} placeholder="https://docs.google.com..." />
           </label>
-          <button className="ghost" onClick={addAttachment} type="button" style={{ gridColumn: '1 / -1', width: '100%', padding: '12px', background: 'rgba(255,255,255,0.05)', marginTop: '4px', border: 'none' }}>Add Link</button>
+          <button className="ghost" onClick={addAttachment} type="button" style={{ gridColumn: '1 / -1', width: '100%', padding: '12px', background: 'rgba(255,255,255,0.05)', marginTop: '4px', border: 'none' }} aria-label="Add project link">
+            Add Link
+          </button>
         </div>
       </div>
     </article>

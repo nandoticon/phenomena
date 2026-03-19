@@ -3,6 +3,7 @@ import { ambientPresets } from '../constants';
 import { createProject } from './storage';
 import { normalizeProject, normalizeSession } from './validation';
 import { getTodayKey } from './date';
+import type { SessionRecord } from '../types';
 
 describe('validation helpers', () => {
   it('clamps and sanitizes project updates at the boundary', () => {
@@ -58,7 +59,7 @@ describe('validation helpers', () => {
       goal: '   ',
       note: '  Tighten the prose  ',
       restartCue: '  Re-enter from the first sentence  ',
-      outcome: 'not-real' as any,
+      outcome: 'not-real' as unknown as SessionRecord['outcome'],
       usedRestartMode: true,
       projectId: 'project-2',
     }, 'fallback-project', baseSession);

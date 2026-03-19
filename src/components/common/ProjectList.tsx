@@ -23,6 +23,8 @@ export function ProjectList({ activeProjetos, activeProject, setActiveProject, s
               setMode('idle');
               setSecondsLeft(project.sprintMinutes * 60);
             }}
+            aria-pressed={project.id === activeProject?.id}
+            aria-label={`Open project ${project.name}`}
             type="button"
             style={{ textAlign: 'left', width: '100%' }}
           >

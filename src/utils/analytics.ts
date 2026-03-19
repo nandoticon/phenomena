@@ -8,6 +8,40 @@ export interface TrendAnnotation {
   detail: string;
 }
 
+export interface TrendDriver {
+  title: string;
+  direction: 'up' | 'down' | 'flat';
+  detail: string;
+  evidence: string;
+}
+
+export interface TrendModel {
+  recentWindowLabel: string;
+  previousWindowLabel: string;
+  recentMinutes: number;
+  previousMinutes: number;
+  recentSessions: number;
+  previousSessions: number;
+  recentCompletionRate: number;
+  previousCompletionRate: number;
+  recentAverageGap: number | null;
+  previousAverageGap: number | null;
+  recentPeakTime: string;
+  previousPeakTime: string;
+  drivers: TrendDriver[];
+}
+
+export type SessionsByProjectId = Record<string, SessionRecord[]>;
+
+export function groupSessionsByProject(sessions: SessionRecord[]): SessionsByProjectId {
+  return sessions.reduce<SessionsByProjectId>((acc, session) => {
+    const bucket = acc[session.projectId] ?? [];
+    bucket.push(session);
+    acc[session.projectId] = bucket;
+    return acc;
+  }, {});
+}
+
 export function projectGoal(project: Project): string {
   return project.customGoal.trim() || project.selectedGoal;
 }
@@ -58,15 +92,15 @@ export function outcomeLabel(outcome: SessionResultado): string {
   return outcomeOptions.find((option) => option.value === outcome)?.label ?? 'Drafted Text';
 }
 
-export function getProjectSessions(projectId: string, sessions: SessionRecord[]): SessionRecord[] {
-  return sessions.filter((session) => session.projectId === projectId);
+export function getProjectSessions(projectId: string, sessions: SessionRecord[] | SessionsByProjectId): SessionRecord[] {
+  return Array.isArray(sessions) ? sessions.filter((session) => session.projectId === projectId) : sessions[projectId] ?? [];
 }
 
 export function getProjectAttachmentCount(projects: Project[]): number {
   return projects.reduce((count, project) => count + project.attachments.length, 0);
 }
 
-export function getWeeklyMinutes(projectId: string, sessions: SessionRecord[]): number {
+export function getWeeklyMinutes(projectId: string, sessions: SessionRecord[] | SessionsByProjectId): number {
   return getProjectSessions(projectId, sessions)
     .filter((session) => Date.now() - parseDateKey(session.date).getTime() <= 6 * 86400000)
     .reduce((total, session) => total + session.minutes, 0);
@@ -79,6 +113,129 @@ export function groupCount<T extends string>(items: T[]): Record<string, number>
   }, {});
 }
 
+function getDayOffset(date: string): number {
+  const today = parseDateKey(getTodayKey()).getTime();
+  const sessionDate = parseDateKey(date).getTime();
+  return Math.floor((today - sessionDate) / 86400000);
+}
+
+function getAverageGapDays(sessions: SessionRecord[]): number | null {
+  if (sessions.length < 2) {
+    return null;
+  }
+
+  const ordered = sessions
+    .slice()
+    .sort((a, b) => parseDateKey(a.date).getTime() - parseDateKey(b.date).getTime());
+
+  const gaps = ordered.slice(1).map((session, index) => getDayDiff(ordered[index].date, session.date));
+  return Math.round(gaps.reduce((total, gap) => total + gap, 0) / gaps.length);
+}
+
+function getWindowSessions(sessions: SessionRecord[], startOffset: number, endOffset: number) {
+  return sessions.filter((session) => {
+    const offset = getDayOffset(session.date);
+    return offset >= startOffset && offset <= endOffset;
+  });
+}
+
+function summarizeWindowTrend(
+  recentSessions: SessionRecord[],
+  previousSessions: SessionRecord[],
+  project: Project,
+): TrendDriver[] {
+  const recentMinutes = recentSessions.reduce((total, session) => total + session.minutes, 0);
+  const previousMinutes = previousSessions.reduce((total, session) => total + session.minutes, 0);
+  const recentCompletionRate = recentSessions.length
+    ? Math.round((recentSessions.filter((session) => session.minutes >= project.sprintMinutes).length / recentSessions.length) * 100)
+    : 0;
+  const previousCompletionRate = previousSessions.length
+    ? Math.round((previousSessions.filter((session) => session.minutes >= project.sprintMinutes).length / previousSessions.length) * 100)
+    : 0;
+
+  const recentTimeCounts = groupCount(recentSessions.map((session) => getTimeBucket(session.timeOfDay)));
+  const previousTimeCounts = groupCount(previousSessions.map((session) => getTimeBucket(session.timeOfDay)));
+  const recentPeakTime = topKey(recentTimeCounts, 'Noite');
+  const previousPeakTime = topKey(previousTimeCounts, 'Noite');
+
+  const recentGap = getAverageGapDays(recentSessions);
+  const previousGap = getAverageGapDays(previousSessions);
+  const minuteDelta = recentMinutes - previousMinutes;
+  const sessionDelta = recentSessions.length - previousSessions.length;
+  const completionDelta = recentCompletionRate - previousCompletionRate;
+
+  const momentumDirection: TrendDriver['direction'] =
+    minuteDelta > 0 || sessionDelta > 0 || completionDelta > 0 ? 'up' : minuteDelta < 0 || sessionDelta < 0 || completionDelta < 0 ? 'down' : 'flat';
+
+  const momentumDetail = minuteDelta === 0 && sessionDelta === 0
+    ? 'Your recent rhythm is steady.'
+    : minuteDelta > 0 && sessionDelta > 0
+      ? `You are showing up more often and spending more time at the desk.`
+      : minuteDelta > 0
+        ? 'Recent gains come mostly from longer sessions, not more sessions.'
+        : sessionDelta > 0
+          ? 'You are showing up more often, even though total minutes dipped a little.'
+          : 'Recent output has softened compared with the previous window.';
+
+  const timingDirection: TrendDriver['direction'] =
+    recentPeakTime === previousPeakTime ? 'flat' : 'up';
+  const timingDetail = recentPeakTime === previousPeakTime
+    ? `The strongest time block stayed anchored at ${recentPeakTime}, which suggests consistency is doing the work.`
+    : `The strongest time block moved from ${previousPeakTime} to ${recentPeakTime}, so recent progress is likely coming from a shifted daily rhythm.`;
+
+  const cadenceDirection: TrendDriver['direction'] = recentGap === null || previousGap === null
+    ? 'flat'
+    : recentGap > previousGap
+      ? 'down'
+      : recentGap < previousGap
+        ? 'up'
+        : 'flat';
+  const cadenceDetail = recentGap === null || previousGap === null
+    ? 'There are not enough sessions to compare cadence yet.'
+    : recentGap < previousGap
+      ? `Your spacing tightened from about ${previousGap} day${previousGap === 1 ? '' : 's'} between sessions to ${recentGap} day${recentGap === 1 ? '' : 's'}, which usually explains improved momentum.`
+      : recentGap > previousGap
+        ? `Session spacing widened from about ${previousGap} day${previousGap === 1 ? '' : 's'} to ${recentGap} day${recentGap === 1 ? '' : 's'}, which makes the trend feel more uneven.`
+        : `Session spacing stayed steady at about ${recentGap} day${recentGap === 1 ? '' : 's'} between sessions.`;
+
+  const qualityDirection: TrendDriver['direction'] =
+    completionDelta > 0 ? 'up' : completionDelta < 0 ? 'down' : 'flat';
+  const qualityDetail = completionDelta === 0
+    ? 'The share of on-plan sessions held steady.'
+    : completionDelta > 0
+      ? `Follow-through improved by ${Math.abs(completionDelta)} points, so the trend is not just about more time, but cleaner sessions.`
+      : `Follow-through slipped by ${Math.abs(completionDelta)} points, which suggests sessions are getting looser even if the desk time is there.`;
+
+  return [
+    {
+      title: 'Momentum',
+      direction: momentumDirection,
+      detail: momentumDetail,
+      evidence: `${recentSessions.length} recent session${recentSessions.length === 1 ? '' : 's'} vs ${previousSessions.length} in the prior window, ${recentMinutes} recent minutes vs ${previousMinutes}.`,
+    },
+    {
+      title: 'Cadence',
+      direction: cadenceDirection,
+      detail: cadenceDetail,
+      evidence: recentGap === null || previousGap === null
+        ? 'Cadence comparison needs at least two sessions in each window.'
+        : `Average gap: ${previousGap} day${previousGap === 1 ? '' : 's'} before, ${recentGap} day${recentGap === 1 ? '' : 's'} now.`,
+    },
+    {
+      title: 'Timing',
+      direction: timingDirection,
+      detail: timingDetail,
+      evidence: `Strongest window shifted from ${previousPeakTime} to ${recentPeakTime}.`,
+    },
+    {
+      title: 'Follow-through',
+      direction: qualityDirection,
+      detail: qualityDetail,
+      evidence: `Completion rate changed from ${previousCompletionRate}% to ${recentCompletionRate}% in the latest window.`,
+    },
+  ];
+}
+
 export function topKey(counts: Record<string, number>, fallback: string): string {
   const entries = Object.entries(counts);
   if (!entries.length) {
@@ -87,8 +244,10 @@ export function topKey(counts: Record<string, number>, fallback: string): string
   return entries.sort((a, b) => b[1] - a[1])[0][0];
 }
 
-export function getProjectAnalytics(project: Project, sessions: SessionRecord[]) {
+export function getProjectAnalytics(project: Project, sessions: SessionRecord[] | SessionsByProjectId) {
   const projectSessions = getProjectSessions(project.id, sessions);
+  const recentSessions = getWindowSessions(projectSessions, 0, 6);
+  const previousSessions = getWindowSessions(projectSessions, 7, 13);
   const averageSprint = projectSessions.length
     ? Math.round(projectSessions.reduce((total, session) => total + session.minutes, 0) / projectSessions.length)
     : project.sprintMinutes;
@@ -151,6 +310,7 @@ export function getProjectAnalytics(project: Project, sessions: SessionRecord[])
         : 'Run a restart-mode session to start tracking recovery windows.',
     },
   ];
+  const trendDrivers = summarizeWindowTrend(recentSessions, previousSessions, project);
 
   return {
     bestTime,
@@ -168,10 +328,11 @@ export function getProjectAnalytics(project: Project, sessions: SessionRecord[])
     noteSeed,
     totalSessions: projectSessions.length,
     trendAnnotations,
+    trendDrivers,
   };
 }
 
-export function getCrossProjectSummary(projects: Project[], sessions: SessionRecord[]) {
+export function getCrossProjectSummary(projects: Project[], sessions: SessionRecord[] | SessionsByProjectId) {
   const activeProjetos = projects.filter((project) => !project.archived);
   const totalWeeklyMinutes = activeProjetos.reduce((sum, project) => sum + getWeeklyMinutes(project.id, sessions), 0);
   const topStreakProject = activeProjetos.slice().sort((a, b) => b.streak - a.streak)[0];
@@ -206,7 +367,7 @@ export function filterSessionsByRange(sessions: SessionRecord[], range: ChartRan
   return sessions.filter((session) => parseDateKey(session.date).getTime() >= cutoff.getTime());
 }
 
-export function getRecentDaySeries(projectId: string, sessions: SessionRecord[], range: ChartRange): ChartPoint[] {
+export function getRecentDaySeries(projectId: string, sessions: SessionRecord[] | SessionsByProjectId, range: ChartRange): ChartPoint[] {
   const filteredSessions = filterSessionsByRange(getProjectSessions(projectId, sessions), range);
   const days = getRangeDays(range) ?? Math.min(
     30,
@@ -234,7 +395,7 @@ export function getRecentDaySeries(projectId: string, sessions: SessionRecord[],
   });
 }
 
-export function getOutcomeSeries(projectId: string, sessions: SessionRecord[], range: ChartRange) {
+export function getOutcomeSeries(projectId: string, sessions: SessionRecord[] | SessionsByProjectId, range: ChartRange) {
   const counts = groupCount(filterSessionsByRange(getProjectSessions(projectId, sessions), range).map((session) => session.outcome));
   return outcomeOptions.map((option) => ({
     label: option.label,
@@ -242,7 +403,7 @@ export function getOutcomeSeries(projectId: string, sessions: SessionRecord[], r
   }));
 }
 
-export function getMoodSeries(projectId: string, sessions: SessionRecord[], range: ChartRange): ChartPoint[] {
+export function getMoodSeries(projectId: string, sessions: SessionRecord[] | SessionsByProjectId, range: ChartRange): ChartPoint[] {
   const moodMinutos = filterSessionsByRange(getProjectSessions(projectId, sessions), range).reduce<Record<string, number>>((acc, session) => {
     acc[session.mood] = (acc[session.mood] ?? 0) + session.minutes;
     return acc;
@@ -254,7 +415,7 @@ export function getMoodSeries(projectId: string, sessions: SessionRecord[], rang
   }));
 }
 
-export function getProjectComparisonSeries(projects: Project[], sessions: SessionRecord[], metric: ComparisonMetric, range: ChartRange): ChartPoint[] {
+export function getProjectComparisonSeries(projects: Project[], sessions: SessionRecord[] | SessionsByProjectId, metric: ComparisonMetric, range: ChartRange): ChartPoint[] {
   return projects
     .filter((project) => !project.archived)
     .map((project) => {

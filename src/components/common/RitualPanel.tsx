@@ -22,13 +22,13 @@ export function RitualPanel({ ritualSteps, ritualPronto, resetRitual, toggleRitu
           <p className="eyebrow">Preparation Ritual</p>
           <h2>Complete these steps before starting.</h2>
         </div>
-        <button className="ghost" onClick={resetRitual} type="button" style={{ fontSize: '0.8rem', padding: '6px 12px' }}>Reset steps</button>
+        <button className="ghost" onClick={resetRitual} type="button" style={{ fontSize: '0.8rem', padding: '6px 12px' }} aria-label="Reset ritual steps">Reset steps</button>
       </div>
 
       <div className="ritual-list">
         {ritualSteps.map((step) => (
           <label className={`ritual-item ${activeProject.ritualChecks[step.id] ? 'checked' : ''}`} key={step.id}>
-            <input checked={activeProject.ritualChecks[step.id]} onChange={() => toggleRitual(step.id)} type="checkbox" />
+            <input checked={activeProject.ritualChecks[step.id]} onChange={() => toggleRitual(step.id)} type="checkbox" aria-label={step.label} />
             <span>
               <strong>{step.label}</strong>
               <small>{step.detail}</small>
@@ -37,7 +37,7 @@ export function RitualPanel({ ritualSteps, ritualPronto, resetRitual, toggleRitu
         ))}
       </div>
 
-      <div className={`status ${ritualPronto ? 'ready' : ''}`} style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div className={`status ${ritualPronto ? 'ready' : ''}`} role="status" aria-live="polite" aria-atomic="true" style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
         {ritualPronto ? <><CheckCircle2 size={16} /> <span>Ritual complete. You are ready to start.</span></> : <span>Complete the steps below to prepare.</span>}
       </div>
 
@@ -58,7 +58,7 @@ export function RitualPanel({ ritualSteps, ritualPronto, resetRitual, toggleRitu
           <div className="restart-list">
             {restartSteps.map((step) => (
               <label className={`restart-item ${activeProject.restartChecks[step] ? 'checked' : ''}`} key={step}>
-                <input checked={activeProject.restartChecks[step]} onChange={() => toggleRestartCheck(step)} type="checkbox" />
+                <input checked={activeProject.restartChecks[step]} onChange={() => toggleRestartCheck(step)} type="checkbox" aria-label={step} />
                 <span>{step}</span>
               </label>
             ))}

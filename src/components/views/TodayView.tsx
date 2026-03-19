@@ -1,5 +1,4 @@
 import React, { memo, useMemo } from 'react';
-import { createPortal } from 'react-dom';
 import type { Dispatch, SetStateAction } from 'react';
 import { BellRing } from 'lucide-react';
 import { MobileAccordion } from '../common/MobileAccordion';
@@ -8,6 +7,8 @@ import { NotesPanel } from '../common/NotesPanel';
 import { RitualPanel } from '../common/RitualPanel';
 import { SessionPanel } from '../common/SessionPanel';
 import { SessionEditorModal } from '../common/SessionEditorModal';
+import { SessionDeleteModal } from '../common/SessionDeleteModal';
+import { OnboardingWizard, ONBOARDING_STORAGE_KEY } from '../common/OnboardingWizard';
 import { ToastNotification } from '../common/ToastNotification';
 import { goalLibrary, ritualSteps, restartSteps, outcomeOptions } from '../../constants';
 import {
@@ -21,11 +22,13 @@ import {
   getProjectAnalytics,
 } from '../../utils/analytics';
 import { createSessionDraft } from '../../utils/session';
+import type { SessionsByProjectId } from '../../utils/analytics';
 import type { AppState, Project, SessionRecord } from '../../types';
 
 interface TodayViewProps {
   activeProject: Project | undefined;
   state: AppState;
+  sessionsByProject: SessionsByProjectId;
   setState: React.Dispatch<React.SetStateAction<AppState>>;
   mode: 'idle' | 'sprint' | 'break';
   secondsLeft: number;
@@ -51,13 +54,17 @@ interface TodayViewProps {
 }
 
 function TodayViewComponent({
-  activeProject, state, setState, mode, secondsLeft, setSecondsLeft,
+  activeProject, state, sessionsByProject, setState, mode, secondsLeft, setSecondsLeft,
   startSprint, resetTimer, completeSession, activateRestartMode,
   formatTime, updateProject, sessionNote, setSessionNote,
   restartCue, setRestartCue, deleteSession, updateSession,
   isPaused, togglePause, toast, setToast, restoreSession, addSession
 }: TodayViewProps) {
   const safeActiveProject = activeProject ?? state.projects[0];
+  const activeProjectSessions = useMemo(() => {
+    if (!safeActiveProject) return [];
+    return sessionsByProject[safeActiveProject.id] ?? [];
+  }, [safeActiveProject, sessionsByProject]);
   const [editingSession, setEditingSession] = React.useState<SessionRecord | null>(null);
   const [sessionToDelete, setSessionToDelete] = React.useState<string | null>(null);
   const [isAddingSession, setIsAddingSession] = React.useState(false);
@@ -85,48 +92,62 @@ function TodayViewComponent({
   }, [editingSession, sessionToDelete, isAddingSession]);
 
   const recentSessions = useMemo(() => {
-    return state.sessions
-      .filter((s) => s.projectId === activeProject?.id)
-      .slice(-5)
-      .reverse();
-  }, [state.sessions, activeProject?.id]);
+    return activeProjectSessions.slice(-5).reverse();
+  }, [activeProjectSessions]);
+  const onboardingProject = safeActiveProject ?? state.projects[0];
 
   const analytics = useMemo(() => {
-    if (!activeProject) return null;
-    return getProjectAnalytics(activeProject, state.sessions);
-  }, [activeProject, state.sessions]);
+    if (!safeActiveProject) return null;
+    return getProjectAnalytics(safeActiveProject, activeProjectSessions);
+  }, [activeProjectSessions, safeActiveProject]);
 
   const coaching = useMemo(() => {
-    if (!activeProject) return { message: '', evidence: '' };
-    return getCoachingInsight(activeProject, state);
-  }, [activeProject, state]);
+    if (!safeActiveProject) return { message: '', evidence: '' };
+    return getCoachingInsight(safeActiveProject, { ...state, sessions: activeProjectSessions });
+  }, [activeProjectSessions, safeActiveProject, state]);
 
   const recoveryMessage = useMemo(() => {
-    if (!activeProject) return '';
-    return getRecoveryMessage(activeProject);
-  }, [activeProject]);
+    if (!safeActiveProject) return '';
+    return getRecoveryMessage(safeActiveProject);
+  }, [safeActiveProject]);
 
   const restart = useMemo(() => {
-    if (!activeProject) return { needed: false, daysAway: 0 };
-    return getRestartState(activeProject);
-  }, [activeProject]);
+    if (!safeActiveProject) return { needed: false, daysAway: 0 };
+    return getRestartState(safeActiveProject);
+  }, [safeActiveProject]);
 
   const streakLabel = useMemo(() => {
-    if (!activeProject) return '';
-    return getStreakLabel(activeProject.lastCompletionDate, activeProject.streak);
-  }, [activeProject]);
+    if (!safeActiveProject) return '';
+    return getStreakLabel(safeActiveProject.lastCompletionDate, safeActiveProject.streak);
+  }, [safeActiveProject]);
 
-  const dashboard = useMemo(() => getCrossProjectSummary(state.projects, state.sessions), [state.projects, state.sessions]);
+  const dashboard = useMemo(() => getCrossProjectSummary(state.projects, sessionsByProject), [sessionsByProject, state.projects]);
 
   const ritualPronto = useMemo(() => {
-    if (!activeProject) return false;
-    return Object.values(activeProject.ritualChecks).every(Boolean);
-  }, [activeProject]);
+    if (!safeActiveProject) return false;
+    return Object.values(safeActiveProject.ritualChecks).every(Boolean);
+  }, [safeActiveProject]);
 
   const readyToStart = useMemo(() => {
     return !!activeProject;
   }, [activeProject]);
   const hasFirstRun = state.sessions.length === 0;
+  const [showOnboardingWizard, setShowOnboardingWizard] = React.useState(() => {
+    if (!hasFirstRun || typeof window === 'undefined') {
+      return false;
+    }
+    return window.localStorage.getItem(ONBOARDING_STORAGE_KEY) !== 'true';
+  });
+
+  React.useEffect(() => {
+    if (!hasFirstRun) {
+      return;
+    }
+
+    if (window.localStorage.getItem(ONBOARDING_STORAGE_KEY) === 'true') {
+      setShowOnboardingWizard(false);
+    }
+  }, [hasFirstRun]);
 
   const toggleRitual = (key: string) => {
     updateProject((p) => ({
@@ -181,7 +202,7 @@ function TodayViewComponent({
         </div>
       </header>
 
-      {hasFirstRun ? (
+      {hasFirstRun && !showOnboardingWizard ? (
         <section
           className="card panel"
           style={{ marginBottom: '24px', border: '1px solid var(--panel-border)', background: 'linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,122,89,0.06))' }}
@@ -203,13 +224,23 @@ function TodayViewComponent({
               </ul>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <button className="primary" onClick={startSprint} type="button">Start first sprint</button>
+              <button className="primary" onClick={() => setShowOnboardingWizard(true)} type="button">Open setup wizard</button>
+              <button className="ghost" onClick={startSprint} type="button">Start first sprint</button>
               <p style={{ margin: 0, color: 'var(--secondary)', fontSize: '0.9rem' }}>
                 Default timers and reminders can be adjusted from Projects and Account once you have a first pass of data.
               </p>
             </div>
           </div>
         </section>
+      ) : null}
+
+      {onboardingProject ? (
+        <OnboardingWizard
+          open={showOnboardingWizard}
+          project={onboardingProject}
+          onApply={(updates) => updateProject((project) => ({ ...project, ...updates }))}
+          onClose={() => setShowOnboardingWizard(false)}
+        />
       ) : null}
 
       <section className="today-two-column-layout">
@@ -238,7 +269,7 @@ function TodayViewComponent({
             }} />
           </MobileAccordion>
 
-          <MobileAccordion title="Session Log" defaultOpen={false}>
+          <MobileAccordion title="Recent Sessions" defaultOpen={false}>
             <SessionPanel {...{
               outcomeOptions, activeProject: safeActiveProject, updateProject, state, setState,
               coaching, recoveryMessage, streakLabel, recentSessions, outcomeLabel,
@@ -270,48 +301,17 @@ function TodayViewComponent({
         }}
       />
 
-      {/* Confirmation Modal for Deletion */}
-      {sessionToDelete && createPortal(
-        <div className="modal-overlay" onClick={() => setSessionToDelete(null)}>
-          <div
-            className="modal-content card"
-            style={{ maxWidth: '400px', textAlign: 'center' }}
-            onClick={e => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="delete-session-title"
-            tabIndex={-1}
-            onKeyDown={(event) => {
-              if (event.key === 'Escape') {
-                setSessionToDelete(null);
-              }
-            }}
-          >
-            <div className="panel-head" style={{ justifyContent: 'center' }}>
-              <h3 style={{ margin: 0 }} id="delete-session-title">Delete Session?</h3>
-            </div>
-
-            <p style={{ color: 'var(--muted)', margin: '16px 0 32px', lineHeight: 1.5 }}>
-              This action cannot be undone. This session will be permanently removed from your history.
-            </p>
-
-            <div className="button-row-modal">
-              <button
-                className="primary"
-                onClick={() => {
-                  deleteSession(sessionToDelete);
-                  setSessionToDelete(null);
-                }}
-                style={{ background: 'var(--accent)', color: '#fff' }}
-              >
-                Yes, Delete
-              </button>
-              <button className="ghost" onClick={() => setSessionToDelete(null)} aria-label="Cancel deleting session">Cancel</button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <SessionDeleteModal
+        open={Boolean(sessionToDelete)}
+        titleId="delete-session-title"
+        onConfirm={() => {
+          if (sessionToDelete) {
+            deleteSession(sessionToDelete);
+            setSessionToDelete(null);
+          }
+        }}
+        onCancel={() => setSessionToDelete(null)}
+      />
 
       {toast?.visible ? (
         <ToastNotification

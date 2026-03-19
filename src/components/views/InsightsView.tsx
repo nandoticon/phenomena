@@ -1,12 +1,13 @@
 import React, { memo, useMemo, useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { DashboardBanner } from '../common/DashboardBanner';
 import { ProjectAnatomyPanel } from '../common/ProjectAnatomyPanel';
 import { HistoryPanel } from '../common/HistoryPanel';
 import { SessionEditorModal } from '../common/SessionEditorModal';
 import { ToastNotification } from '../common/ToastNotification';
+import { SessionDeleteModal } from '../common/SessionDeleteModal';
 import { outcomeOptions } from '../../constants';
 import { createSessionDraft } from '../../utils/session';
+import type { SessionsByProjectId } from '../../utils/analytics';
 import {
   getCrossProjectSummary,
   getProjectAnalytics,
@@ -20,6 +21,7 @@ import type { AppState, ChartPoint, ChartRange, ComparisonMetric, HistoryOutcome
 
 interface InsightsViewProps {
   state: AppState;
+  sessionsByProject: SessionsByProjectId;
   activeProject: Project | undefined;
   historySessions: SessionRecord[];
   historyQuery: string;
@@ -44,24 +46,28 @@ interface InsightsViewProps {
 }
 
 function InsightsViewComponent({
-  state, activeProject, historySessions, historyQuery, setHistoryQuery,
+  state, sessionsByProject, activeProject, historySessions, historyQuery, setHistoryQuery,
   historyProjectFilter, setHistoryProjectFilter, historyOutcomeFilter, setHistoryOutcomeFilter,
   chartRange, setChartRange, comparisonMetric, setComparisonMetric,
   activeChartPoint, setActiveChartPoint, projectNameMap,
   addSession, updateSession, deleteSession, restoreSession, toast, setToast
 }: InsightsViewProps) {
   const safeActiveProject = activeProject ?? state.projects[0];
+  const activeProjectSessions = useMemo(() => {
+    if (!safeActiveProject) return [];
+    return sessionsByProject[safeActiveProject.id] ?? [];
+  }, [safeActiveProject, sessionsByProject]);
   const [editingSession, setEditingSession] = useState<SessionRecord | null>(null);
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
   const [isAddingSession, setIsAddingSession] = useState(false);
 
-  const dashboard = useMemo(() => getCrossProjectSummary(state.projects, state.sessions), [state.projects, state.sessions]);
-  const analytics = useMemo(() => activeProject ? getProjectAnalytics(activeProject, state.sessions) : null, [activeProject, state.sessions]);
+  const dashboard = useMemo(() => getCrossProjectSummary(state.projects, sessionsByProject), [sessionsByProject, state.projects]);
+  const analytics = useMemo(() => safeActiveProject ? getProjectAnalytics(safeActiveProject, activeProjectSessions) : null, [activeProjectSessions, safeActiveProject]);
   
-  const recentDaySeries = useMemo(() => activeProject ? getRecentDaySeries(activeProject.id, state.sessions, chartRange) : [], [activeProject, state.sessions, chartRange]);
-  const outcomeSeries = useMemo(() => activeProject ? getOutcomeSeries(activeProject.id, state.sessions, chartRange) : [], [activeProject, state.sessions, chartRange]);
-  const moodSeries = useMemo(() => activeProject ? getMoodSeries(activeProject.id, state.sessions, chartRange) : [], [activeProject, state.sessions, chartRange]);
-  const projectComparisonSeries = useMemo(() => getProjectComparisonSeries(state.projects, state.sessions, comparisonMetric, chartRange), [state.projects, state.sessions, comparisonMetric, chartRange]);
+  const recentDaySeries = useMemo(() => safeActiveProject ? getRecentDaySeries(safeActiveProject.id, activeProjectSessions, chartRange) : [], [activeProjectSessions, chartRange, safeActiveProject]);
+  const outcomeSeries = useMemo(() => safeActiveProject ? getOutcomeSeries(safeActiveProject.id, activeProjectSessions, chartRange) : [], [activeProjectSessions, chartRange, safeActiveProject]);
+  const moodSeries = useMemo(() => safeActiveProject ? getMoodSeries(safeActiveProject.id, activeProjectSessions, chartRange) : [], [activeProjectSessions, chartRange, safeActiveProject]);
+  const projectComparisonSeries = useMemo(() => getProjectComparisonSeries(state.projects, sessionsByProject, comparisonMetric, chartRange), [chartRange, comparisonMetric, sessionsByProject, state.projects]);
   const hasFirstRun = state.sessions.length === 0;
 
   useEffect(() => {
@@ -145,46 +151,17 @@ function InsightsViewComponent({
         }}
       />
 
-      {/* Delete Confirmation Modal */}
-      {sessionToDelete && createPortal(
-        <div className="modal-overlay" onClick={() => setSessionToDelete(null)}>
-          <div
-            className="modal-content card"
-            style={{ maxWidth: '400px', textAlign: 'center' }}
-            onClick={e => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="insights-delete-session-title"
-            tabIndex={-1}
-            onKeyDown={(event) => {
-              if (event.key === 'Escape') {
-                setSessionToDelete(null);
-              }
-            }}
-          >
-            <div className="panel-head" style={{ justifyContent: 'center' }}>
-              <h3 style={{ margin: 0 }} id="insights-delete-session-title">Delete Session?</h3>
-            </div>
-            <p style={{ color: 'var(--muted)', margin: '16px 0 32px', lineHeight: 1.5 }}>
-              This action cannot be undone. This session will be permanently removed from your history.
-            </p>
-            <div className="button-row-modal">
-              <button
-                className="primary"
-                onClick={() => {
-                  deleteSession(sessionToDelete);
-                  setSessionToDelete(null);
-                }}
-                style={{ background: 'var(--accent)', color: '#fff' }}
-              >
-                Yes, Delete
-              </button>
-              <button className="ghost" onClick={() => setSessionToDelete(null)} aria-label="Cancel deleting session">Cancel</button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <SessionDeleteModal
+        open={Boolean(sessionToDelete)}
+        titleId="insights-delete-session-title"
+        onConfirm={() => {
+          if (sessionToDelete) {
+            deleteSession(sessionToDelete);
+            setSessionToDelete(null);
+          }
+        }}
+        onCancel={() => setSessionToDelete(null)}
+      />
 
       {toast?.visible ? (
         <ToastNotification

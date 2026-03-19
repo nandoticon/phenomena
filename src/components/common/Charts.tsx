@@ -23,6 +23,12 @@ export function LineChart({
   }
 
   const max = Math.max(...points.map((point) => point.value), 1);
+  const handlePointKeyDown = (event: React.KeyboardEvent<SVGCircleElement>, point: ChartPoint) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onPointFocus?.(point);
+    }
+  };
   const path = points
     .map((point, index) => {
       const x = (index / Math.max(points.length - 1, 1)) * 100;
@@ -59,6 +65,7 @@ export function LineChart({
               style={{ fill: accent }}
               onMouseEnter={() => onPointFocus?.(point)}
               onFocus={() => onPointFocus?.(point)}
+              onKeyDown={(event) => handlePointKeyDown(event, point)}
               tabIndex={0}
               role="button"
               aria-label={`${point.label}: ${point.value} minutes`}
@@ -108,6 +115,12 @@ export function BarChart({
   }
 
   const max = Math.max(...points.map((point) => point.value), 1);
+  const handleBarKeyDown = (event: React.KeyboardEvent<HTMLDivElement>, point: ChartPoint) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onPointFocus?.(point);
+    }
+  };
   return (
     <div className="chart-card">
       <div className="chart-head">
@@ -121,7 +134,7 @@ export function BarChart({
               <strong>{point.label}</strong>
               <span>{point.note ?? `${point.value}`}</span>
             </div>
-            <div className="bar-track" onMouseEnter={() => onPointFocus?.(point)} onFocus={() => onPointFocus?.(point)} tabIndex={0}>
+            <div className="bar-track" onMouseEnter={() => onPointFocus?.(point)} onFocus={() => onPointFocus?.(point)} onKeyDown={(event) => handleBarKeyDown(event, point)} tabIndex={0} role="button" aria-label={`${point.label}: ${point.value}`}>
               <div className="bar-fill" style={{ width: `${(point.value / max) * 100}%`, background: accent }} />
             </div>
             <span className="bar-value">{point.value}</span>

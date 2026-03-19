@@ -2,7 +2,7 @@ import React from 'react';
 import { Disc3 } from 'lucide-react';
 import { BarChart } from './Charts';
 import type { ChartPoint, Project, SessionResultado } from '../../types';
-import type { TrendAnnotation } from '../../utils/analytics';
+import type { TrendAnnotation, TrendDriver } from '../../utils/analytics';
 
 interface ProjectAnalyticsView {
   totalMinutes: number;
@@ -15,6 +15,7 @@ interface ProjectAnalyticsView {
   worstRecoveryWindow: string;
   dominantMoodPattern: string[];
   trendAnnotations: TrendAnnotation[];
+  trendDrivers: TrendDriver[];
 }
 
 interface ProjectAnatomyPanelProps {
@@ -40,6 +41,7 @@ export function ProjectAnatomyPanel({ activeProject, analytics, outcomeLabel, ou
     worstRecoveryWindow: 'No recovery window yet',
     dominantMoodPattern: ['steady', 'drafted'],
     trendAnnotations: [],
+    trendDrivers: [],
   };
 
   return (
@@ -86,6 +88,17 @@ export function ProjectAnatomyPanel({ activeProject, analytics, outcomeLabel, ou
           <ul style={{ margin: '8px 0 0', paddingLeft: '18px', color: 'var(--muted)', lineHeight: 1.5 }}>
             {safeAnalytics.trendAnnotations.map((item: TrendAnnotation) => (
               <li key={item.title}><strong>{item.title}:</strong> {item.detail}</li>
+            ))}
+          </ul>
+        </div>
+        <div className="project-card" style={{ background: 'var(--surface-soft)', border: '1px solid var(--panel-border)', gridColumn: '1 / -1' }}>
+          <strong>Why the trend looks this way</strong>
+          <ul style={{ margin: '8px 0 0', paddingLeft: '18px', color: 'var(--muted)', lineHeight: 1.5 }}>
+            {safeAnalytics.trendDrivers.map((driver: TrendDriver) => (
+              <li key={driver.title}>
+                <strong>{driver.title} ({driver.direction}):</strong> {driver.detail}
+                <div style={{ marginTop: '4px', fontSize: '0.85rem', color: 'var(--secondary)' }}>{driver.evidence}</div>
+              </li>
             ))}
           </ul>
         </div>

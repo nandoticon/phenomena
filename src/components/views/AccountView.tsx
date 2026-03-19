@@ -4,7 +4,7 @@ import type { Session } from '@supabase/supabase-js';
 import { CloudPanel } from '../common/CloudPanel';
 import { LocalDataPanel } from '../common/LocalDataPanel';
 import { PreferencesPanel } from '../common/PreferencesPanel';
-import type { AppState, BackupPreview, NuvemStatus, Profile, Project, ReminderEvent, SyncQueueState, UiTheme } from '../../types';
+import type { AppState, BackupDiffSummary, BackupManifest, BackupPreview, BackupRestoreSelection, NuvemStatus, Profile, Project, ReminderEvent, SyncQueueState, UiTheme } from '../../types';
 import type { SyncConflict } from '../../utils/sync';
 
 interface AccountViewProps {
@@ -61,9 +61,14 @@ interface AccountViewProps {
   projectNameMap: Record<string, string>;
   backupName: string;
   setBackupName: Dispatch<SetStateAction<string>>;
+  backupHistory: BackupManifest[];
   importPreview: BackupPreview | null;
+  backupDiff: BackupDiffSummary | null;
+  backupRestoreSelection: BackupRestoreSelection;
+  setBackupRestoreSelection: Dispatch<SetStateAction<BackupRestoreSelection>>;
   confirmImportBackup: () => void;
   cancelImportBackup: () => void;
+  previewBackupFromHistory: (backup: BackupManifest) => void;
 }
 
 function AccountViewComponent({
@@ -76,7 +81,7 @@ function AccountViewComponent({
   activeProject, updateProject, reminderStatus, enableNotifications, exportBackup, fileInputRef,
   importBackup, importMessage, setUiTheme, uiTheme, formatCloudTimestamp,
   reminderEvents, acknowledgeReminder, refreshReminderInbox, projectNameMap,
-  backupName, setBackupName, importPreview, confirmImportBackup, cancelImportBackup
+  backupName, setBackupName, backupHistory, importPreview, backupDiff, backupRestoreSelection, setBackupRestoreSelection, confirmImportBackup, cancelImportBackup, previewBackupFromHistory
 }: AccountViewProps) {
   return (
     <section className="page-container workspace-account">
@@ -96,7 +101,7 @@ function AccountViewComponent({
   session, profile, authPassword, setAuthPassword, authPasswordConfirm,
   setAuthPasswordConfirm, updatePassword, passwordMessage,
           reminderEvents, acknowledgeReminder, refreshReminderInbox, projectNameMap,
-          backupName, setBackupName, importPreview, confirmImportBackup, cancelImportBackup
+          backupName, setBackupName, backupHistory, importPreview, backupDiff, backupRestoreSelection, setBackupRestoreSelection, confirmImportBackup, cancelImportBackup, previewBackupFromHistory
         }} />
       </div>
 
