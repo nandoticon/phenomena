@@ -27,8 +27,8 @@ export function PreferencesPanel({
 
   return (
     <article className="card panel settings-panel" style={{ marginTop: '24px', padding: '16px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
-        <div>
+      <div className="panel-head" style={{ alignItems: 'flex-end', marginBottom: '20px' }}>
+        <div style={{ maxWidth: '720px' }}>
           <p className="eyebrow" style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '6px' }}><Settings size={14} /> Preferences</p>
           <h2 style={{ fontSize: '1.4rem' }}>Workspace Defaults</h2>
           <p style={{ color: 'var(--muted)', marginTop: '8px', maxWidth: '100%', lineHeight: 1.5, fontSize: '0.9rem' }}>
@@ -40,9 +40,28 @@ export function PreferencesPanel({
         </button>
       </div>
 
+      <div className="preferences-summary" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '12px', marginBottom: '20px' }}>
+        <div className="summary-card" style={{ padding: '14px 16px', border: '1px solid var(--panel-border)' }}>
+          <strong style={{ display: 'block', marginBottom: '4px' }}>Theme</strong>
+          <span>{uiTheme}</span>
+        </div>
+        <div className="summary-card" style={{ padding: '14px 16px', border: '1px solid var(--panel-border)' }}>
+          <strong style={{ display: 'block', marginBottom: '4px' }}>Default Sprint</strong>
+          <span>{profile.default_sprint_minutes} min</span>
+        </div>
+        <div className="summary-card" style={{ padding: '14px 16px', border: '1px solid var(--panel-border)' }}>
+          <strong style={{ display: 'block', marginBottom: '4px' }}>Default Break</strong>
+          <span>{profile.default_break_minutes} min</span>
+        </div>
+        <div className="summary-card" style={{ padding: '14px 16px', border: '1px solid var(--panel-border)' }}>
+          <strong style={{ display: 'block', marginBottom: '4px' }}>Notifications</strong>
+          <span>{profile.reminder_channel}</span>
+        </div>
+      </div>
+
       <div className="settings-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '16px' }}>
         <div style={{ padding: '16px', background: 'var(--surface-soft)', borderRadius: '24px', border: '1px solid var(--panel-border)' }}>
-          <h3 style={{ fontSize: '1.1rem', marginBottom: '20px', borderBottom: '1px solid var(--panel-border)', paddingBottom: '12px' }}>Appearance</h3>
+          <h3 style={{ fontSize: '1.1rem', marginBottom: '16px', borderBottom: '1px solid var(--panel-border)', paddingBottom: '12px' }}>Appearance</h3>
           <label className="input-block compact" htmlFor={themeId} style={{ padding: 0, background: 'transparent', border: 'none' }}>
             <span style={{ marginBottom: '8px' }}>Theme</span>
             <select id={themeId} style={{ background: 'var(--input-bg)' }} onChange={(event) => setUiTheme(event.target.value as UiTheme)} value={uiTheme}>
@@ -53,8 +72,8 @@ export function PreferencesPanel({
         </div>
 
         <div style={{ padding: '16px', background: 'var(--surface-soft)', borderRadius: '24px', border: '1px solid var(--panel-border)' }}>
-          <h3 style={{ fontSize: '1.1rem', marginBottom: '20px', borderBottom: '1px solid var(--panel-border)', paddingBottom: '12px' }}>Profile</h3>
-          <label className="input-block" htmlFor={displayNameId} style={{ padding: 0, marginBottom: '20px', background: 'transparent', border: 'none' }}>
+          <h3 style={{ fontSize: '1.1rem', marginBottom: '16px', borderBottom: '1px solid var(--panel-border)', paddingBottom: '12px' }}>Profile</h3>
+          <label className="input-block" htmlFor={displayNameId} style={{ padding: 0, marginBottom: '16px', background: 'transparent', border: 'none' }}>
             <span style={{ marginBottom: '8px' }}>Display Name</span>
             <input id={displayNameId} style={{ background: 'var(--input-bg)' }} onChange={(event) => updateProfile('display_name', event.target.value || null)} type="text" value={profile.display_name ?? ''} placeholder="Your desk name" />
           </label>
@@ -65,7 +84,7 @@ export function PreferencesPanel({
         </div>
 
         <div style={{ padding: '16px', background: 'var(--surface-soft)', borderRadius: '24px', border: '1px solid var(--panel-border)' }}>
-          <h3 style={{ fontSize: '1.1rem', marginBottom: '20px', borderBottom: '1px solid var(--panel-border)', paddingBottom: '12px' }}>Timer Defaults</h3>
+          <h3 style={{ fontSize: '1.1rem', marginBottom: '16px', borderBottom: '1px solid var(--panel-border)', paddingBottom: '12px' }}>Timer Defaults</h3>
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
             <label className="input-block compact" htmlFor={sprintMinutesId} style={{ flex: '1 1 120px', padding: 0, background: 'transparent', border: 'none' }}>
               <span style={{ marginBottom: '8px' }}>Default Sprint Duration</span>
@@ -89,7 +108,7 @@ export function PreferencesPanel({
         </div>
 
         <div style={{ padding: '16px', background: 'var(--surface-soft)', borderRadius: '24px', border: '1px solid var(--panel-border)' }}>
-          <h3 style={{ fontSize: '1.1rem', marginBottom: '20px', borderBottom: '1px solid var(--panel-border)', paddingBottom: '12px' }}>Email Notifications</h3>
+          <h3 style={{ fontSize: '1.1rem', marginBottom: '16px', borderBottom: '1px solid var(--panel-border)', paddingBottom: '12px' }}>Email Notifications</h3>
           <label className="input-block compact" htmlFor={reminderChannelId} style={{ padding: 0, marginBottom: '16px', background: 'transparent', border: 'none' }}>
             <span style={{ marginBottom: '8px' }}>Notification Channel</span>
             <select id={reminderChannelId} style={{ background: 'var(--input-bg)' }} onChange={(event) => updateProfile('reminder_channel', event.target.value as Profile['reminder_channel'])} value={profile.reminder_channel}>

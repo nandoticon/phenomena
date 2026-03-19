@@ -34,6 +34,7 @@ interface CloudPanelProps {
   pullCloudState: () => void;
   pushLocalState: () => void;
   replaceCloudWithLocal: () => void;
+  compactSignedIn?: boolean;
 }
 
 export function CloudPanel({
@@ -42,7 +43,7 @@ export function CloudPanel({
   authPasswordConfirm, setAuthPasswordConfirm, signInWithPassword, signUpWithPassword,
   sendPasswordReset, updatePassword, signOut, authMessage, remoteSnapshot,
   getProjectAttachmentCount, normalizedMessage, state, syncConflict, syncQueue, pullCloudState,
-  pushLocalState, replaceCloudWithLocal
+  pushLocalState, replaceCloudWithLocal, compactSignedIn = false
 }: CloudPanelProps) {
   const localSummary = summarizeState(state);
   const cloudSummary = summarizeState(remoteSnapshot);
@@ -64,12 +65,12 @@ export function CloudPanel({
       </div>
 
       {hasSupabaseConfig ? (
-        <div className="auth-grid" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div className={session && compactSignedIn ? 'cloud-compact-grid' : 'auth-grid'} style={{ display: 'flex', flexDirection: 'column', gap: session && compactSignedIn ? '16px' : '24px' }}>
           <div className="coach-note" style={{ background: 'var(--surface-soft)', padding: '16px', borderRadius: '24px', border: '1px solid var(--panel-border)' }}>
             {session ? (
               <>
-                <strong style={{ fontSize: '1.2rem', display: 'block', marginBottom: '8px' }}>Logged In</strong>
-                <p style={{ margin: '0 0 16px', color: 'var(--muted)', wordBreak: 'break-all' }}>Logged in as <strong>{session.user.email}</strong>. Your data is syncing safely.</p>
+                <strong style={{ fontSize: compactSignedIn ? '1rem' : '1.2rem', display: 'block', marginBottom: '8px' }}>Logged In</strong>
+                <p style={{ margin: '0 0 10px', color: 'var(--muted)', wordBreak: 'break-all' }}>Logged in as <strong>{session.user.email}</strong>.</p>
                 <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--secondary)' }}>Last sync: {formatCloudTimestamp(remoteUpdatedAt)}</p>
               </>
             ) : (
@@ -129,21 +130,21 @@ export function CloudPanel({
               </div>
             </div>
           ) : (
-            <div className="button-row cloud-actions" style={{ gridTemplateColumns: '1fr', gap: '12px' }}>
+            <div className={compactSignedIn ? 'cloud-actions compact' : 'button-row cloud-actions'} style={compactSignedIn ? { display: 'grid', gap: '12px', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' } : { gridTemplateColumns: '1fr', gap: '12px' }}>
               <button className="ghost" onClick={signOut} type="button" style={{ color: 'var(--accent)', border: '1px solid rgba(255, 122, 89, 0.4)' }} aria-label="Sign out of the cloud account">Sign Out</button>
             </div>
           )}
 
           {authMessage ? <div className="status ready" role="status" aria-live="polite" aria-atomic="true" style={{ background: 'rgba(255, 122, 89, 0.1)', color: 'var(--accent)', border: '1px solid rgba(255, 122, 89, 0.4)' }}>{authMessage}</div> : null}
 
-          {session && remoteSnapshot ? (
+          {session && remoteSnapshot && !compactSignedIn ? (
             <div className="coach-note muted" style={{ borderLeft: '3px solid var(--secondary)' }}>
               <strong style={{ color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '6px' }}><Shield size={16} /> Cloud Data Summary</strong>
               <p style={{ marginTop: '8px' }}>Cloud storage contains: {remoteSnapshot.projects.length} projects, {remoteSnapshot.sessions.length} sessions, and {getProjectAttachmentCount(remoteSnapshot.projects)} attachments.</p>
             </div>
           ) : null}
 
-          {session && normalizedMessage ? (
+          {session && normalizedMessage && !compactSignedIn ? (
             <div className="coach-note muted" style={{ borderLeft: '3px solid var(--muted)' }}>
               <strong style={{ color: 'var(--text)' }}>Sync Log</strong>
               <p style={{ marginTop: '8px' }}>{normalizedMessage}</p>
@@ -154,7 +155,9 @@ export function CloudPanel({
             <div className="coach-note" style={{ borderLeft: '3px solid var(--accent)', background: 'var(--surface-soft)' }}>
               <strong style={{ color: 'var(--text)', display: 'block', marginBottom: '8px' }}>Sync status</strong>
               <p style={{ marginTop: 0, marginBottom: '12px', color: 'var(--muted)', lineHeight: 1.5 }}>
-                Local changes are merged by default. Use the buttons below if you want to pull from the cloud or replace it with local data.
+                {compactSignedIn
+                  ? 'Local and cloud data are kept in sync here.'
+                  : 'Local changes are merged by default. Use the buttons below if you want to pull from the cloud or replace it with local data.'}
               </p>
               <div style={{ display: 'grid', gap: '10px', marginBottom: '12px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>

@@ -83,31 +83,68 @@ function AccountViewComponent({
   backupName, setBackupName, backupHistory, importPreview, backupDiff, backupComparison, backupRestoreSelection, backupItemSelection, setBackupRestoreSelection, setBackupItemSelection, confirmImportBackup, cancelImportBackup, previewBackupFromHistory,
   cleanupOldSessions, cleanupBackupHistory, retentionSummary, retentionMessage, setRetentionMessage,
 }: AccountViewProps) {
+  const latestBackupAt = backupHistory.reduce<string | null>((latest, backup) => {
+    if (!backup.exportedAt) return latest;
+    if (!latest) return backup.exportedAt;
+    return new Date(backup.exportedAt).getTime() > new Date(latest).getTime() ? backup.exportedAt : latest;
+  }, null);
+
   return (
     <section className="page-container workspace-account">
-      <div className="two-column-layout">
-        <CloudPanel {...{
-          hasSupabaseConfig, session, formatCloudTimestamp, remoteUpdatedAt,
-          authView, setAuthView, authEmail, setAuthEmail, authPassword, setAuthPassword,
-          authPasswordConfirm, setAuthPasswordConfirm, signInWithPassword, signUpWithPassword,
-          sendPasswordReset, updatePassword, signOut, authMessage, remoteSnapshot,
-          getProjectAttachmentCount, normalizedMessage, state, syncConflict, syncQueue, cloudStatus,
-          pullCloudState, pushLocalState, replaceCloudWithLocal
-        }} />
+      <header className="workspace-header">
+        <div className="workspace-header-copy">
+          <p className="eyebrow">Account</p>
+          <h1 style={{ margin: 0 }}>Workspace Settings</h1>
+          <p className="lede">Keep cloud sync, backups, and workspace defaults organized like a desktop control center instead of one long utility stack.</p>
+        </div>
 
-        <LocalDataPanel {...{
-          exportBackup, fileInputRef, importBackup, importMessage,
-          session, profile, authPassword, setAuthPassword, authPasswordConfirm,
-          setAuthPasswordConfirm, updatePassword, passwordMessage,
-          backupName, setBackupName, backupHistory, previewBackupFromHistory,
-          cleanupOldSessions, cleanupBackupHistory, retentionSummary, retentionMessage, setRetentionMessage
-        }} />
+        <div className="workspace-header-stats workspace-header-stats-four">
+          <div className="workspace-stat-card">
+            <span className="summary-label">Sync</span>
+            <strong className="summary-value workspace-stat-copy">{cloudStatus}</strong>
+          </div>
+          <div className="workspace-stat-card">
+            <span className="summary-label">Signed In</span>
+            <strong className="summary-value workspace-stat-copy">{session ? 'Yes' : 'No'}</strong>
+          </div>
+          <div className="workspace-stat-card">
+            <span className="summary-label">Theme</span>
+            <strong className="summary-value workspace-stat-copy">{uiTheme}</strong>
+          </div>
+          <div className="workspace-stat-card">
+            <span className="summary-label">Backup Freshness</span>
+            <strong className="summary-value workspace-stat-copy">{latestBackupAt ? formatCloudTimestamp(latestBackupAt) : 'No backups yet'}</strong>
+          </div>
+        </div>
+      </header>
+
+      <div className="workspace-split-layout workspace-account-layout">
+        <div className="workspace-main-stack">
+          <CloudPanel {...{
+            hasSupabaseConfig, session, formatCloudTimestamp, remoteUpdatedAt,
+            authView, setAuthView, authEmail, setAuthEmail, authPassword, setAuthPassword,
+            authPasswordConfirm, setAuthPasswordConfirm, signInWithPassword, signUpWithPassword,
+            sendPasswordReset, updatePassword, signOut, authMessage, remoteSnapshot,
+            getProjectAttachmentCount, normalizedMessage, state, syncConflict, syncQueue, cloudStatus,
+            pullCloudState, pushLocalState, replaceCloudWithLocal, compactSignedIn: true
+          }} />
+
+          <PreferencesPanel {...{
+            session, profile, applyProfileDefaultsToActiveProject, uiTheme, setUiTheme,
+            updateProfile, profileMessage
+          }} />
+        </div>
+
+        <aside className="workspace-rail-stack">
+          <LocalDataPanel {...{
+            exportBackup, fileInputRef, importBackup, importMessage,
+            session, profile, authPassword, setAuthPassword, authPasswordConfirm,
+            setAuthPasswordConfirm, updatePassword, passwordMessage,
+            backupName, setBackupName, backupHistory, previewBackupFromHistory,
+            cleanupOldSessions, cleanupBackupHistory, retentionSummary, retentionMessage, setRetentionMessage
+          }} />
+        </aside>
       </div>
-
-      <PreferencesPanel {...{
-        session, profile, applyProfileDefaultsToActiveProject, uiTheme, setUiTheme,
-        updateProfile, profileMessage
-      }} />
 
       <BackupRestoreModal {...{
         open: Boolean(importPreview),

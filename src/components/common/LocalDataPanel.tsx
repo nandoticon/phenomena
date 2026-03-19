@@ -1,7 +1,6 @@
 import React from 'react';
 import { Shield, FileText, Key, Trash2, History } from 'lucide-react';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
-import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 import type { BackupManifest, DataRetentionSummary, Profile } from '../../types';
 
 interface LocalDataPanelProps {
@@ -270,16 +269,35 @@ export function LocalDataPanel({
         </article>
       ) : null}
 
-      <ConfirmDeleteModal
-        open={Boolean(pendingCleanup)}
-        title={pendingCleanup?.kind === 'sessions' ? 'Delete old sessions?' : 'Prune backup history?'}
-        description={pendingCleanup?.kind === 'sessions'
-          ? `This will remove sessions older than ${pendingCleanup.olderThanDays} days from the synced workspace in this browser.`
-          : `This will keep the most recent ${pendingCleanup?.keepRecentCount ?? 20} backups and remove snapshots older than ${pendingCleanup?.olderThanDays ?? 365} days from local history.`}
-        onConfirm={confirmCleanup}
-        onCancel={() => setPendingCleanup(null)}
-        titleId="retention-confirm-title"
-      />
+      {pendingCleanup ? (
+        <section
+          className="card panel"
+          style={{ padding: '16px', borderRadius: '22px', border: '1px solid var(--panel-border)', background: 'var(--surface-soft)' }}
+          aria-label="Cleanup confirmation"
+        >
+          <div className="panel-head" style={{ marginBottom: '12px' }}>
+            <div>
+              <p className="eyebrow" style={{ color: 'var(--accent)' }}>Confirm cleanup</p>
+              <h3 style={{ margin: 0, fontSize: '1.05rem' }}>
+                {pendingCleanup.kind === 'sessions' ? 'Delete old sessions?' : 'Prune backup history?'}
+              </h3>
+            </div>
+          </div>
+          <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.5 }}>
+            {pendingCleanup.kind === 'sessions'
+              ? `This will remove sessions older than ${pendingCleanup.olderThanDays} days from the synced workspace in this browser.`
+              : `This will keep the most recent ${pendingCleanup.keepRecentCount} backups and remove snapshots older than ${pendingCleanup.olderThanDays} days from local history.`}
+          </p>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'flex-end', marginTop: '16px' }}>
+            <button className="ghost" type="button" onClick={() => setPendingCleanup(null)}>
+              Cancel
+            </button>
+            <button className="primary" type="button" onClick={confirmCleanup}>
+              Confirm cleanup
+            </button>
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

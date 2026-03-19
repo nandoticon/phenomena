@@ -94,31 +94,15 @@ function InsightsViewComponent({
 
   return (
     <section className="page-container workspace-insights">
-      {hasFirstRun ? (
-        <section
-          className="card panel"
-          style={{ marginBottom: '24px', border: '1px solid var(--panel-border)', background: 'linear-gradient(135deg, rgba(255,255,255,0.03), rgba(167,224,104,0.08))' }}
-          aria-label="Insights onboarding"
-        >
-          <div className="panel-head" style={{ marginBottom: '12px' }}>
-            <div>
-              <p className="eyebrow" style={{ color: 'var(--accent)' }}>Insights</p>
-              <h2 style={{ margin: 0 }}>No data yet</h2>
-            </div>
-          </div>
-          <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.6 }}>
-            Run your first session from Today. After that, this view will show trends, outcomes, and project comparisons automatically.
-          </p>
-        </section>
-      ) : null}
+      <header className="workspace-header workspace-header-with-actions">
+        <div className="workspace-header-copy">
+          <p className="eyebrow" style={{ color: 'var(--accent)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}><Layers size={14} /> Analytics</p>
+          <h1 style={{ margin: 0 }}>Insights Desk</h1>
+          <p className="lede">Track momentum, compare projects, and inspect session history with a layout that uses desktop space for analysis instead of stacked cards.</p>
+        </div>
 
-      <section className="card panel" style={{ marginBottom: '24px', border: '1px solid var(--panel-border)', background: 'var(--surface-soft)' }} aria-label="Insights mode switch">
-        <div className="panel-head" style={{ marginBottom: '0' }}>
-          <div>
-            <p className="eyebrow" style={{ color: 'var(--accent)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}><Layers size={14} /> Analytics</p>
-            <h2 style={{ margin: 0 }}>{insightsMode === 'summary' ? 'Summary' : 'Explore'}</h2>
-          </div>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <div className="workspace-header-actions">
+          <div className="workspace-mode-toggle">
             <button
               className={insightsMode === 'summary' ? 'primary' : 'ghost'}
               type="button"
@@ -138,37 +122,78 @@ function InsightsViewComponent({
               <Layers size={14} /> Explore
             </button>
           </div>
-        </div>
-        <p style={{ margin: '12px 0 0', color: 'var(--muted)', lineHeight: 1.5 }}>
-          Summary shows the main metrics. Explore shows charts, comparisons, and session history.
-        </p>
-      </section>
 
-      <DashboardBanner {...{
-        dashboard, chartRange, setChartRange, comparisonMetric, setComparisonMetric,
-        projectComparisonSeries, activeChartPoint, setActiveChartPoint, recentDaySeries
-      }} />
+          <div className="workspace-header-stats">
+            <div className="workspace-stat-card">
+              <span className="summary-label">Projects</span>
+              <strong className="summary-value">{dashboard.activeCount}</strong>
+            </div>
+            <div className="workspace-stat-card">
+              <span className="summary-label">Weekly Minutes</span>
+              <strong className="summary-value">{dashboard.totalWeeklyMinutes}</strong>
+            </div>
+            <div className="workspace-stat-card workspace-stat-card-wide">
+              <span className="summary-label">Best Streak</span>
+              <strong className="summary-value workspace-stat-copy">{dashboard.topStreakProject}</strong>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {hasFirstRun ? (
+        <section
+          className="card panel"
+          style={{ marginBottom: '24px', border: '1px solid var(--panel-border)', background: 'linear-gradient(135deg, rgba(255,255,255,0.03), rgba(167,224,104,0.08))' }}
+          aria-label="Insights onboarding"
+        >
+          <div className="panel-head" style={{ marginBottom: '12px' }}>
+            <div>
+              <p className="eyebrow" style={{ color: 'var(--accent)' }}>Insights</p>
+              <h2 style={{ margin: 0 }}>No data yet</h2>
+            </div>
+          </div>
+          <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.6 }}>
+            Run your first session from Today. After that, this view will show trends, outcomes, and project comparisons automatically.
+          </p>
+        </section>
+      ) : null}
 
       {insightsMode === 'summary' ? (
-        <ProjectAnatomyPanel {...{
-          activeProject: safeActiveProject, analytics, outcomeLabel, outcomeSeries,
-          activeChartPoint, setActiveChartPoint, moodSeries, showCharts: false, compactSummary: true
-        }} />
-      ) : (
-        <div className="two-column-layout">
-          <ProjectAnatomyPanel {...{
-            activeProject: safeActiveProject, analytics, outcomeLabel, outcomeSeries,
-            activeChartPoint, setActiveChartPoint, moodSeries, showCharts: true
+        <div className="workspace-insights-summary-grid">
+          <DashboardBanner {...{
+            dashboard, chartRange, setChartRange, comparisonMetric, setComparisonMetric,
+            projectComparisonSeries, activeChartPoint, setActiveChartPoint, recentDaySeries
           }} />
 
-          <HistoryPanel {...{
-            historyQuery, setHistoryQuery, historyProjectFilter, setHistoryProjectFilter,
-            activeProject, historyOutcomeFilter, setHistoryOutcomeFilter, outcomeOptions,
-            filteredHistory: historySessions, projectNameMap, outcomeLabel,
-            onEditSession: (session: SessionRecord) => setEditingSession(session),
-            onDeleteSession: (id: string) => setSessionToDelete(id),
-            onAddSession: () => setIsAddingSession(true)
+          <ProjectAnatomyPanel {...{
+            activeProject: safeActiveProject, analytics, outcomeLabel, outcomeSeries,
+            activeChartPoint, setActiveChartPoint, moodSeries, showCharts: false, compactSummary: true
           }} />
+        </div>
+      ) : (
+        <div className="workspace-insights-explore-grid">
+          <div className="workspace-insights-chart-stack">
+            <DashboardBanner {...{
+              dashboard, chartRange, setChartRange, comparisonMetric, setComparisonMetric,
+              projectComparisonSeries, activeChartPoint, setActiveChartPoint, recentDaySeries
+            }} />
+
+            <ProjectAnatomyPanel {...{
+              activeProject: safeActiveProject, analytics, outcomeLabel, outcomeSeries,
+              activeChartPoint, setActiveChartPoint, moodSeries, showCharts: true
+            }} />
+          </div>
+
+          <aside className="workspace-rail-stack workspace-insights-rail">
+            <HistoryPanel {...{
+              historyQuery, setHistoryQuery, historyProjectFilter, setHistoryProjectFilter,
+              activeProject, historyOutcomeFilter, setHistoryOutcomeFilter, outcomeOptions,
+              filteredHistory: historySessions, projectNameMap, outcomeLabel,
+              onEditSession: (session: SessionRecord) => setEditingSession(session),
+              onDeleteSession: (id: string) => setSessionToDelete(id),
+              onAddSession: () => setIsAddingSession(true)
+            }} />
+          </aside>
         </div>
       )}
 

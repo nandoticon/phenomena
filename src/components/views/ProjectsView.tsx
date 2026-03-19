@@ -54,36 +54,78 @@ function ProjectsViewComponent({
   reminderEvents, acknowledgeReminder, refreshReminderInbox, projectNameMap
 }: ProjectsViewProps) {
   const safeActiveProject = activeProject ?? activeProjects[0];
+  const reminderHealth = safeActiveProject
+    ? (safeActiveProject.reminderEnabled
+      ? (safeActiveProject.reminderTime ? `On at ${safeActiveProject.reminderTime}` : 'On')
+      : 'Off')
+    : 'None';
+
   return (
     <section className="page-container workspace-projects">
-      <div className="today-two-column-layout">
-        <div className="today-main-col">
-          <article className="card panel project-panel">
+      <header className="workspace-header">
+        <div className="workspace-header-copy">
+          <p className="eyebrow"><Book size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} /> Projects</p>
+          <h1 style={{ margin: 0 }}>Project Desk</h1>
+          <p className="lede">Manage active work, tune the current project, and keep supporting material close without burying the main list.</p>
+        </div>
+
+        <div className="workspace-header-stats workspace-header-stats-four">
+          <div className="workspace-stat-card">
+            <span className="summary-label">Active</span>
+            <strong className="summary-value">{activeProjects.length}</strong>
+          </div>
+          <div className="workspace-stat-card">
+            <span className="summary-label">Reminder</span>
+            <strong className="summary-value workspace-stat-copy">{reminderHealth}</strong>
+          </div>
+          <div className="workspace-stat-card">
+            <span className="summary-label">Archived</span>
+            <strong className="summary-value">{archivedProjetos.length}</strong>
+          </div>
+          <div className="workspace-stat-card">
+            <span className="summary-label">Focus</span>
+            <strong className="summary-value workspace-stat-copy">{safeActiveProject?.name ?? 'None selected'}</strong>
+          </div>
+        </div>
+      </header>
+
+      <div className="workspace-split-layout workspace-projects-layout">
+        <div className="workspace-main-stack">
+          <article className="card panel project-panel workspace-hero-panel">
             <div className="panel-head">
               <div>
-                <p className="eyebrow"><Book size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} /> Projects</p>
-                <h1 style={{ fontSize: '1.4rem', margin: 0 }}>Active Projects</h1>
+                <p className="eyebrow"><Book size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} /> Active Projects</p>
+                <h2 style={{ margin: 0 }}>Choose what gets your attention next</h2>
               </div>
             </div>
 
             <ProjectList {...{
               activeProjects, activeProject: safeActiveProject, setActiveProject, setMode, setSecondsLeft
             }} />
+          </article>
 
-            <ProjectSetupPanel {...{
-              activeProjects, activeProject: safeActiveProject, updateProject, archiveActiveProject,
-              duplicateActiveProject, ambientPresets, toggleFullscreen, isFullscreen, toggleReminder, notificationState, getReminderStatus,
-              reminderEvents, acknowledgeReminder, refreshReminderInbox, projectNameMap
-            }} />
+          <ProjectSetupPanel {...{
+            activeProjects, activeProject: safeActiveProject, updateProject, archiveActiveProject,
+            duplicateActiveProject, ambientPresets, toggleFullscreen, isFullscreen, toggleReminder, notificationState, getReminderStatus,
+            reminderEvents, acknowledgeReminder, refreshReminderInbox, projectNameMap
+          }} />
+        </div>
+
+        <aside className="workspace-rail-stack">
+          <article className="card panel utility-panel workspace-utility-panel">
+            <div className="panel-head">
+              <div>
+                <p className="eyebrow">New Project</p>
+                <h2 style={{ margin: 0 }}>Start something clean</h2>
+              </div>
+            </div>
 
             <NewProjectPanel {...{
               createNewProject, newProjectName, setNewProjectName,
-              newProjectNote, setNewProjectNote
+              newProjectNote, setNewProjectNote, embedded: true
             }} />
           </article>
-        </div>
 
-        <div className="today-sidebar-col">
           <LinksPanel {...{
             activeProject: safeActiveProject, removeAttachment, newAttachmentLabel,
             setNewAttachmentLabel, newAttachmentUrl, setNewAttachmentUrl,
@@ -93,7 +135,7 @@ function ProjectsViewComponent({
           <ArchivedProjectsPanel {...{
             archivedProjetos, restoreProject, mergeIntoActiveProject
           }} />
-        </div>
+        </aside>
       </div>
     </section>
   );

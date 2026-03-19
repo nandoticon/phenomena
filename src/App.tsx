@@ -868,7 +868,7 @@ export default function App() {
 
   return (
     <div className={`app-container ${isFullscreen ? 'is-fullscreen' : ''} ${uiTheme === 'light' ? 'theme-light' : 'theme-dark'} ${mode === 'sprint' ? 'focus-dim-bg' : ''}`}>
-      <main className={`workspace-main ${isFullscreen ? 'fullscreen-mode' : 'shell'}`} style={{ paddingBottom: 'calc(4rem + env(safe-area-inset-bottom))' }}>
+      <main className={`workspace-main workspace-${workspaceView} ${isFullscreen ? 'fullscreen-mode' : 'shell'}`} style={{ paddingBottom: 'calc(4rem + env(safe-area-inset-bottom))' }}>
         {showInstallBanner ? (
           <PwaInstallBanner
             canInstall={Boolean(deferredInstallPrompt)}

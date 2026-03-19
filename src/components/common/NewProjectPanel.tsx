@@ -8,14 +8,15 @@ interface NewProjectPanelProps {
   setNewProjectName: Dispatch<SetStateAction<string>>;
   newProjectNote: string;
   setNewProjectNote: Dispatch<SetStateAction<string>>;
+  embedded?: boolean;
 }
 
-export function NewProjectPanel({ createNewProject, newProjectName, setNewProjectName, newProjectNote, setNewProjectNote }: NewProjectPanelProps) {
+export function NewProjectPanel({ createNewProject, newProjectName, setNewProjectName, newProjectNote, setNewProjectNote, embedded = false }: NewProjectPanelProps) {
   const projectNameId = 'new-project-name';
   const projectNoteId = 'new-project-note';
 
   return (
-    <div style={{ marginTop: '32px', paddingTop: '24px', borderTop: '1px dashed var(--panel-border)' }}>
+    <div style={embedded ? undefined : { marginTop: '32px', paddingTop: '24px', borderTop: '1px dashed var(--panel-border)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <h3 style={{ margin: 0, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}><Plus size={18} /> New Project</h3>
         <button className="primary" onClick={createNewProject} type="button" style={{ padding: '8px 20px', borderRadius: '16px', fontSize: '0.9rem' }} aria-label="Create new project">

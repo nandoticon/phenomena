@@ -241,7 +241,7 @@ function TodayViewComponent({
 
   return (
     <div className="page-container workspace-today">
-      <header className="hero">
+      <header className="hero today-hero">
         <div className="hero-content">
           <p className="eyebrow" style={{ color: 'var(--accent)' }}>Active Project</p>
           <h1 style={{ margin: '8px 0' }}>{activeProject?.name || 'No project selected'}</h1>
@@ -255,16 +255,16 @@ function TodayViewComponent({
           ) : null}
         </div>
 
-        <div className="hero-stats">
-          <div className="stat-card">
+        <div className="hero-stats today-hero-stats">
+          <div className="stat-card today-stat-card">
             <span className="summary-label">Weekly Minutes</span>
             <strong className="summary-value">{dashboard.totalWeeklyMinutes}</strong>
           </div>
-          <div className="stat-card">
+          <div className="stat-card today-stat-card">
             <span className="summary-label">Streak</span>
             <strong className="summary-value">{activeProject?.streak || 0}d</strong>
           </div>
-          <div className="stat-card">
+          <div className="stat-card today-stat-card">
             <span className="summary-label">Active Projects</span>
             <strong className="summary-value">{dashboard.activeCount}</strong>
           </div>
@@ -298,47 +298,51 @@ function TodayViewComponent({
             goalLibrary={goalLibrary}
           />
 
-          {hasFirstRun && !setupDismissed && !showOnboardingWizard ? (
-            <section
-              className="card panel getting-started-panel"
-              style={{ marginBottom: '0', border: '1px solid var(--panel-border)', background: 'linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,122,89,0.06))' }}
-              aria-label="Getting started"
-            >
-              <div className="panel-head compact-panel-head" style={{ marginBottom: '10px' }}>
-                <div>
-                  <p className="eyebrow" style={{ color: 'var(--accent)' }}>First session setup</p>
-                  <h2 style={{ margin: 0 }}>Set up your project</h2>
+          <div className="today-main-support-grid">
+            {hasFirstRun && !setupDismissed && !showOnboardingWizard ? (
+              <section
+                className="card panel getting-started-panel today-setup-panel"
+                style={{ marginBottom: '0', border: '1px solid var(--panel-border)', background: 'linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,122,89,0.06))' }}
+                aria-label="Getting started"
+              >
+                <div className="panel-head compact-panel-head" style={{ marginBottom: '10px' }}>
+                  <div>
+                    <p className="eyebrow" style={{ color: 'var(--accent)' }}>First session setup</p>
+                    <h2 style={{ margin: 0 }}>Set up your project</h2>
+                  </div>
+                  <button className="ghost compact" onClick={handleDismissSetup} type="button" aria-label="Dismiss getting started">Dismiss</button>
                 </div>
-                <button className="ghost compact" onClick={handleDismissSetup} type="button" aria-label="Dismiss getting started">Dismiss</button>
-              </div>
-              <div className="getting-started-grid">
-                <div className="getting-started-copy">
-                  <p>Your workspace already has a default project. You can begin immediately and adjust the defaults later.</p>
-                  <ul>
-                    <li>Run a short focused sprint.</li>
-                    <li>Add a return cue after the session.</li>
-                    <li>Add another project only when the split is obvious.</li>
-                  </ul>
+                <div className="getting-started-grid">
+                  <div className="getting-started-copy">
+                    <p>Your workspace already has a default project. You can begin immediately and adjust the defaults later.</p>
+                    <ul>
+                      <li>Run a short focused sprint.</li>
+                      <li>Add a return cue after the session.</li>
+                      <li>Add another project only when the split is obvious.</li>
+                    </ul>
+                  </div>
+                  <div className="getting-started-actions">
+                    <button className="primary" onClick={() => setShowOnboardingWizard(true)} type="button">Open setup</button>
+                    <button className="ghost" onClick={handleStartSprint} type="button">Start first sprint</button>
+                    <p>Default timers and reminders can be adjusted from Projects and Account once you have a first pass of data.</p>
+                  </div>
                 </div>
-                <div className="getting-started-actions">
-                  <button className="primary" onClick={() => setShowOnboardingWizard(true)} type="button">Open setup</button>
-                  <button className="ghost" onClick={handleStartSprint} type="button">Start first sprint</button>
-                  <p>Default timers and reminders can be adjusted from Projects and Account once you have a first pass of data.</p>
-                </div>
-              </div>
-            </section>
-          ) : null}
+              </section>
+            ) : null}
 
-          <MobileAccordion title="Session Notes" defaultOpen={true}>
-            <NotesPanel
-              setSessionNote={setSessionNote}
-              sessionNote={sessionNote}
-              setRestartCue={setRestartCue}
-              restartCue={restartCue}
-              recentSessions={recentSessions}
-              analytics={analytics}
-            />
-          </MobileAccordion>
+            <div className="today-notes-slot">
+              <MobileAccordion title="Session Notes" defaultOpen={true}>
+                <NotesPanel
+                  setSessionNote={setSessionNote}
+                  sessionNote={sessionNote}
+                  setRestartCue={setRestartCue}
+                  restartCue={restartCue}
+                  recentSessions={recentSessions}
+                  analytics={analytics}
+                />
+              </MobileAccordion>
+            </div>
+          </div>
         </div>
 
         <div className="today-sidebar-col">
