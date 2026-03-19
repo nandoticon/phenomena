@@ -1,18 +1,17 @@
 import React, { memo } from 'react';
 import { Book } from 'lucide-react';
 import { ProjectList } from '../common/ProjectList';
-import { ProjectSettingsPanel } from '../common/ProjectSettingsPanel';
+import { ProjectSetupPanel } from '../common/ProjectSetupPanel';
 import { NewProjectPanel } from '../common/NewProjectPanel';
 import { LinksPanel } from '../common/LinksPanel';
-import { EnvironmentPanel } from '../common/EnvironmentPanel';
 import { ArchivedProjectsPanel } from '../common/ArchivedProjectsPanel';
 import type { Dispatch, SetStateAction } from 'react';
-import type { NotificationState, Project } from '../../types';
+import type { NotificationState, Project, ReminderEvent } from '../../types';
 
 type AmbientPreset = { label: string; url: string };
 
 interface ProjectsViewProps {
-  activeProjetos: Project[];
+  activeProjects: Project[];
   activeProject: Project | undefined;
   setActiveProject: (projectId: string) => void;
   setMode: (mode: 'idle' | 'sprint' | 'break') => void;
@@ -20,6 +19,7 @@ interface ProjectsViewProps {
   updateProject: (updater: (project: Project) => Project) => void;
   createNewProject: () => void;
   archiveActiveProject: () => void;
+  duplicateActiveProject: () => void;
   toggleReminder: () => void;
   notificationState: NotificationState;
   getReminderStatus: (notificationState: NotificationState, reminderEnabled: boolean) => string;
@@ -35,19 +35,25 @@ interface ProjectsViewProps {
   addAttachment: () => void;
   archivedProjetos: Project[];
   restoreProject: (projectId: string) => void;
+  mergeIntoActiveProject: (projectId: string) => void;
   ambientPresets: AmbientPreset[];
   toggleFullscreen: () => void;
   isFullscreen: boolean;
+  reminderEvents: ReminderEvent[];
+  acknowledgeReminder: (id: string) => void;
+  refreshReminderInbox: () => void;
+  projectNameMap: Record<string, string>;
 }
 
 function ProjectsViewComponent({
-  activeProjetos, activeProject, setActiveProject, setMode, setSecondsLeft,
+  activeProjects, activeProject, setActiveProject, setMode, setSecondsLeft,
   updateProject, createNewProject, archiveActiveProject, newProjectName, setNewProjectName,
   newProjectNote, setNewProjectNote, removeAttachment, newAttachmentLabel, setNewAttachmentLabel,
   newAttachmentUrl, setNewAttachmentUrl, addAttachment, archivedProjetos, restoreProject,
-  ambientPresets, toggleFullscreen, isFullscreen
+  mergeIntoActiveProject, ambientPresets, toggleFullscreen, isFullscreen, duplicateActiveProject, toggleReminder, notificationState, getReminderStatus,
+  reminderEvents, acknowledgeReminder, refreshReminderInbox, projectNameMap
 }: ProjectsViewProps) {
-  const safeActiveProject = activeProject ?? activeProjetos[0];
+  const safeActiveProject = activeProject ?? activeProjects[0];
   return (
     <section className="page-container workspace-projects">
       <div className="today-two-column-layout">
@@ -61,11 +67,13 @@ function ProjectsViewComponent({
             </div>
 
             <ProjectList {...{
-              activeProjetos, activeProject: safeActiveProject, setActiveProject, setMode, setSecondsLeft
+              activeProjects, activeProject: safeActiveProject, setActiveProject, setMode, setSecondsLeft
             }} />
 
-            <ProjectSettingsPanel {...{
-              activeProjetos, activeProject: safeActiveProject, updateProject, archiveActiveProject
+            <ProjectSetupPanel {...{
+              activeProjects, activeProject: safeActiveProject, updateProject, archiveActiveProject,
+              duplicateActiveProject, ambientPresets, toggleFullscreen, isFullscreen, toggleReminder, notificationState, getReminderStatus,
+              reminderEvents, acknowledgeReminder, refreshReminderInbox, projectNameMap
             }} />
 
             <NewProjectPanel {...{
@@ -82,13 +90,8 @@ function ProjectsViewComponent({
             addAttachment
           }} />
 
-          <EnvironmentPanel {...{
-            ambientPresets, activeProject: safeActiveProject, updateProject,
-            toggleFullscreen, isFullscreen
-          }} />
-
           <ArchivedProjectsPanel {...{
-            archivedProjetos, restoreProject
+            archivedProjetos, restoreProject, mergeIntoActiveProject
           }} />
         </div>
       </div>

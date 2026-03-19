@@ -152,9 +152,9 @@ export function CloudPanel({
 
           {session ? (
             <div className="coach-note" style={{ borderLeft: '3px solid var(--accent)', background: 'var(--surface-soft)' }}>
-              <strong style={{ color: 'var(--text)', display: 'block', marginBottom: '8px' }}>Recovery Path</strong>
+              <strong style={{ color: 'var(--text)', display: 'block', marginBottom: '8px' }}>Sync status</strong>
               <p style={{ marginTop: 0, marginBottom: '12px', color: 'var(--muted)', lineHeight: 1.5 }}>
-                Local changes are merged safely by default. If the cloud and local copy drift apart, use the buttons below to choose the source of truth.
+                Local changes are merged by default. Use the buttons below if you want to pull from the cloud or replace it with local data.
               </p>
               <div style={{ display: 'grid', gap: '10px', marginBottom: '12px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>

@@ -1,13 +1,14 @@
 import React from 'react';
-import { Archive } from 'lucide-react';
+import { Archive, Combine } from 'lucide-react';
 import type { Project } from '../../types';
 
 interface ArchivedProjectsPanelProps {
   archivedProjetos: Project[];
   restoreProject: (projectId: string) => void;
+  mergeIntoActiveProject: (projectId: string) => void;
 }
 
-export function ArchivedProjectsPanel({ archivedProjetos, restoreProject }: ArchivedProjectsPanelProps) {
+export function ArchivedProjectsPanel({ archivedProjetos, restoreProject, mergeIntoActiveProject }: ArchivedProjectsPanelProps) {
   if (!archivedProjetos.length) return null;
 
   return (
@@ -19,9 +20,14 @@ export function ArchivedProjectsPanel({ archivedProjetos, restoreProject }: Arch
         {archivedProjetos.map((project) => (
           <div className="archive-item" key={project.id} style={{ padding: '10px 14px', marginBottom: '8px' }}>
             <span style={{ fontSize: '0.9rem' }}>{project.name}</span>
-            <button className="ghost" onClick={() => restoreProject(project.id)} type="button" style={{ padding: '4px 10px', fontSize: '0.8rem' }} aria-label={`Restore archived project ${project.name}`}>
-              Restore
-            </button>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <button className="ghost" onClick={() => restoreProject(project.id)} type="button" style={{ padding: '4px 10px', fontSize: '0.8rem' }} aria-label={`Restore archived project ${project.name}`}>
+                Restore
+              </button>
+              <button className="ghost" onClick={() => mergeIntoActiveProject(project.id)} type="button" style={{ padding: '4px 10px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px' }} aria-label={`Merge archived project ${project.name} into the active project`}>
+                <Combine size={12} /> Merge
+              </button>
+            </div>
           </div>
         ))}
       </div>

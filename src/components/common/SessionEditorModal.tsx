@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { createPortal } from 'react-dom';
+import type { MutableRefObject } from 'react';
 import type { Project, SessionEditorValues, SessionRecord } from '../../types';
 import { outcomeOptions } from '../../constants';
 import { createSessionDraft } from '../../utils/session';
 import { normalizeSession } from '../../utils/validation';
+import { Dialog } from './Dialog';
 
 interface SessionEditorModalProps {
   open: boolean;
@@ -24,7 +24,6 @@ export function SessionEditorModal({
   onClose,
 }: SessionEditorModalProps) {
   const fallbackProjectId = projects.find((project) => !project.archived)?.id ?? projects[0]?.id ?? '';
-  const dialogRef = useRef<HTMLDivElement | null>(null);
   const projectSelectRef = useRef<HTMLSelectElement | null>(null);
   const [draft, setDraft] = useState<SessionEditorValues>(() => {
     if (session) {
@@ -52,26 +51,9 @@ export function SessionEditorModal({
     setDraft({ id, ...rest });
   }, [fallbackProjectId, open, session]);
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    const previousFocus = document.activeElement as HTMLElement | null;
-    projectSelectRef.current?.focus();
-
-    return () => {
-      previousFocus?.focus?.();
-    };
-  }, [open]);
-
   const canSubmit = useMemo(() => {
     return Boolean(draft.projectId && draft.goal.trim());
   }, [draft.goal, draft.projectId]);
-
-  if (!open) {
-    return null;
-  }
 
   const updateDraft = (patch: Partial<SessionEditorValues>) => {
     setDraft((current) => ({ ...current, ...patch }));
@@ -94,47 +76,15 @@ export function SessionEditorModal({
     onClose();
   };
 
-  const trapFocus = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== 'Tab' || !dialogRef.current) {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-      return;
-    }
-
-    const focusable = Array.from(
-      dialogRef.current.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-      ),
-    );
-    if (!focusable.length) {
-      return;
-    }
-
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
-  };
-
-  return createPortal(
-    <div className="modal-overlay" onClick={onClose}>
-      <div
-        ref={dialogRef}
-        className="modal-content card"
-        style={{ maxWidth: '620px' }}
-        onClick={(event) => event.stopPropagation()}
-        onKeyDown={trapFocus}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="session-editor-title"
-        tabIndex={-1}
-      >
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      className="modal-content card"
+      style={{ maxWidth: '620px' }}
+      labelledBy="session-editor-title"
+      initialFocusRef={projectSelectRef as unknown as MutableRefObject<HTMLElement | null>}
+    >
         <div className="panel-head">
           <h3 id="session-editor-title">{mode === 'create' ? 'Manual Session Entry' : 'Edit Session'}</h3>
           <button className="ghost" onClick={onClose} type="button" aria-label="Close session editor">✕</button>
@@ -263,8 +213,6 @@ export function SessionEditorModal({
           </button>
           <button className="ghost" onClick={onClose} style={{ flex: 1 }} type="button">Cancel</button>
         </div>
-      </div>
-    </div>,
-    document.body,
+    </Dialog>
   );
 }

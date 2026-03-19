@@ -1,5 +1,5 @@
 import { ChangeEvent, useEffect, useMemo, useRef, useState, useCallback, lazy, Suspense, useDeferredValue } from 'react';
-import { Moon, Sun, BookOpen, Activity, LayoutDashboard, Settings, Feather } from 'lucide-react';
+import { Moon, Sun, BookOpen, Activity, LayoutDashboard, Settings, Feather, Command } from 'lucide-react';
 import { hasSupabaseConfig, supabase } from './lib/supabase';
 import { useAuth } from './hooks/useAuth';
 import { useTimer } from './hooks/useTimer';
@@ -9,7 +9,7 @@ import {
   Mood, Energy, Focus, SessionResultado, SessionRecord,
   CueTheme, WorkspaceView, UiTheme, Project, Profile,
   AppState, ChartPoint, ChartRange, ComparisonMetric,
-  HistoryProjectFilter, HistoryOutcomeFilter, NotificationState, ReminderEvent, BackupPreview, BackupManifest, BackupRestoreSelection, BackupDiffSummary
+  HistoryProjectFilter, HistoryOutcomeFilter, NotificationState, ReminderEvent, BackupPreview, BackupManifest, BackupRestoreSelection, BackupDiffSummary, BackupComparison, BackupItemSelection, DataRetentionSummary,
 } from './types';
 
 import {
@@ -19,16 +19,26 @@ import {
 } from './constants';
 
 import { getTodayKey, getTimeKey, formatCloudTimestamp } from './utils/date';
-import { parseStoredState, parseBackupPreview, createBackupManifest, serializeSyncState, createProject, BACKUP_HISTORY_KEY, parseBackupHistory, serializeBackupHistory, compareBackupState, defaultBackupRestoreSelection, restoreBackupState } from './utils/storage';
+import { parseStoredState, parseBackupPreview, createBackupManifest, serializeSyncState, createProject, BACKUP_HISTORY_KEY, BACKUP_HISTORY_LIMIT, parseBackupHistory, serializeBackupHistory, compareBackupState, compareBackupItems, defaultBackupRestoreSelection, defaultBackupItemSelection, restoreSelectedBackupItems, pruneSessionsOlderThan, pruneBackupHistory } from './utils/storage';
 import { normalizeProject, normalizeSession as normalizeSessionRecord, normalizeUrl } from './utils/validation';
 import { getReminderStatus, shouldTriggerReminder, getProjectAttachmentCount, groupSessionsByProject } from './utils/analytics';
 
 import { TodayViewSkeleton } from './components/common/Skeleton';
+import { PwaInstallBanner } from './components/common/PwaInstallBanner';
+import { CommandPalette, type CommandPaletteAction } from './components/common/CommandPalette';
 
 const TodayView = lazy(() => import('./components/views/TodayView').then(m => ({ default: m.TodayView })));
 const ProjectsView = lazy(() => import('./components/views/ProjectsView').then(m => ({ default: m.ProjectsView })));
 const InsightsView = lazy(() => import('./components/views/InsightsView').then(m => ({ default: m.InsightsView })));
 const AccountView = lazy(() => import('./components/views/AccountView').then(m => ({ default: m.AccountView })));
+
+const PWA_BANNER_DISMISSED_KEY = 'phenomena-pwa-install-dismissed';
+
+interface BeforeInstallPromptEvent extends Event {
+  readonly platforms: string[];
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+}
 
 export default function App() {
   const [state, setState] = useState<AppState>(() => parseStoredState(localStorage.getItem(STORAGE_KEY)));
@@ -43,14 +53,20 @@ export default function App() {
   const [reminderEvents, setReminderEvents] = useState<ReminderEvent[]>([]);
   const [backupName, setBackupName] = useState('Phenomena backup');
   const [backupHistory, setBackupHistory] = useState<BackupManifest[]>(() => parseBackupHistory(localStorage.getItem(BACKUP_HISTORY_KEY)));
+  const [retentionMessage, setRetentionMessage] = useState('');
   const [importPreview, setImportPreview] = useState<BackupPreview | null>(null);
   const [backupRestoreSelection, setBackupRestoreSelection] = useState<BackupRestoreSelection>(defaultBackupRestoreSelection());
+  const [backupItemSelection, setBackupItemSelection] = useState<BackupItemSelection>(() => defaultBackupItemSelection(state));
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectNote, setNewProjectNote] = useState('');
   const [sessionNote, setSessionNote] = useState('');
   const [restartCue, setRestartCue] = useState('');
   const [newAttachmentLabel, setNewAttachmentLabel] = useState('');
   const [newAttachmentUrl, setNewAttachmentUrl] = useState('');
+  const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isStandalone, setIsStandalone] = useState(false);
+  const [installBannerDismissed, setInstallBannerDismissed] = useState(() => localStorage.getItem(PWA_BANNER_DISMISSED_KEY) === 'true');
+  const [serviceWorkerRegistration, setServiceWorkerRegistration] = useState<ServiceWorkerRegistration | null>(null);
   const toastTimerRef = useRef<number | null>(null);
   const importMessageTimerRef = useRef<number | null>(null);
 
@@ -94,6 +110,40 @@ export default function App() {
     }
   }, [clearImportMessageTimer]);
 
+  const showReminderNotification = useCallback(async (title: string, body: string) => {
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') {
+      return false;
+    }
+
+    if (serviceWorkerRegistration) {
+      await serviceWorkerRegistration.showNotification(title, {
+        body,
+        icon: '/icon.png',
+        badge: '/icon.png',
+        tag: `phenomena-reminder-${title}`,
+      });
+      return true;
+    }
+
+    if ('serviceWorker' in navigator) {
+      const registration = await navigator.serviceWorker.ready;
+      setServiceWorkerRegistration(registration);
+      await registration.showNotification(title, {
+        body,
+        icon: '/icon.png',
+        badge: '/icon.png',
+        tag: `phenomena-reminder-${title}`,
+      });
+      return true;
+    }
+
+    new Notification(title, {
+      body,
+      icon: '/icon.png',
+    });
+    return true;
+  }, [serviceWorkerRegistration]);
+
   const updateProject = useCallback((updater: (project: Project) => Project) => {
     setState((current) => ({
       ...current,
@@ -128,12 +178,99 @@ export default function App() {
     }));
   }, [setState]);
 
+  const duplicateActiveProject = useCallback(() => {
+    setState((current) => {
+      const source = current.projects.find((project) => project.id === current.activeProjectId);
+      if (!source) {
+        return current;
+      }
+
+      const copy: Project = {
+        ...source,
+        id: crypto.randomUUID(),
+        name: source.name.endsWith(' Copy') ? `${source.name} 2` : `${source.name} Copy`,
+        note: source.note,
+        attachments: source.attachments.map((attachment) => ({ ...attachment, id: crypto.randomUUID() })),
+        streak: 0,
+        lastCompletionDate: null,
+        lastReminderDate: null,
+        archived: false,
+      };
+
+      return {
+        ...current,
+        projects: [...current.projects, copy],
+        activeProjectId: copy.id,
+      };
+    });
+    showToast('Project duplicated', 'success', 3000);
+  }, [setState, showToast]);
+
   const restoreProject = useCallback((projectId: string) => {
     setState((current) => ({
       ...current,
       projects: current.projects.map((p) => (p.id === projectId ? { ...p, archived: false } : p)),
     }));
   }, [setState]);
+
+  const mergeArchivedProjectIntoActive = useCallback((sourceProjectId: string) => {
+    setState((current) => {
+      const targetId = current.activeProjectId;
+      if (sourceProjectId === targetId) {
+        return current;
+      }
+
+      const source = current.projects.find((project) => project.id === sourceProjectId);
+      const target = current.projects.find((project) => project.id === targetId);
+      if (!source || !target) {
+        return current;
+      }
+
+      const mergedAttachments = [...target.attachments];
+      for (const attachment of source.attachments) {
+        if (!mergedAttachments.some((item) => item.label === attachment.label && item.url === attachment.url)) {
+          mergedAttachments.push({ ...attachment, id: crypto.randomUUID() });
+        }
+      }
+
+      const mergedProject: Project = normalizeProject({
+        ...target,
+        attachments: mergedAttachments,
+        selectedGoal: target.selectedGoal || source.selectedGoal,
+        customGoal: target.customGoal || source.customGoal,
+        sprintMinutes: target.sprintMinutes || source.sprintMinutes,
+        breakMinutes: target.breakMinutes || source.breakMinutes,
+        streak: Math.max(target.streak, source.streak),
+        lastCompletionDate: [target.lastCompletionDate, source.lastCompletionDate].filter(Boolean).sort().at(-1) ?? null,
+        reminderEnabled: target.reminderEnabled || source.reminderEnabled,
+        reminderTime: target.reminderTime || source.reminderTime,
+        lastReminderDate: [target.lastReminderDate, source.lastReminderDate].filter(Boolean).sort().at(-1) ?? null,
+        soundtrackUrl: target.soundtrackUrl || source.soundtrackUrl,
+        cueTheme: target.cueTheme || source.cueTheme,
+        restartMode: target.restartMode || source.restartMode,
+        sessionOutcome: target.sessionOutcome || source.sessionOutcome,
+      }, target);
+
+      const movedSessions = current.sessions.map((session) =>
+        session.projectId === sourceProjectId ? { ...session, projectId: targetId } : session,
+      );
+
+      return {
+        ...current,
+        projects: current.projects.map((project) => {
+          if (project.id === targetId) {
+            return mergedProject;
+          }
+          if (project.id === sourceProjectId) {
+            return { ...project, archived: true, note: project.note || `Merged into ${target.name}.` };
+          }
+          return project;
+        }),
+        sessions: movedSessions,
+      };
+    });
+    showToast('Project merged into the active project', 'success', 3500);
+  }, [setState, showToast]);
 
   const addAttachment = useCallback(() => {
     const label = newAttachmentLabel.trim();
@@ -239,12 +376,34 @@ export default function App() {
   const [historyProjectFilter, setHistoryProjectFilter] = useState<HistoryProjectFilter>('active');
   const [historyOutcomeFilter, setHistoryOutcomeFilter] = useState<HistoryOutcomeFilter>('all');
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>('today');
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [commandPaletteQuery, setCommandPaletteQuery] = useState('');
+  const [sessionComposerRequest, setSessionComposerRequest] = useState<number | null>(null);
+  const [sessionComposerProjectId, setSessionComposerProjectId] = useState<string | null>(null);
   const [uiTheme, setUiTheme] = useState<UiTheme>('dark');
   const [chartRange, setChartRange] = useState<ChartRange>('30d');
   const [comparisonMetric, setComparisonMetric] = useState<ComparisonMetric>('minutes');
   const [activeChartPoint, setActiveChartPoint] = useState<ChartPoint | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const deferredHistoryQuery = useDeferredValue(historyQuery);
+
+  const retentionSummary = useMemo<DataRetentionSummary>(() => {
+    const sortedSessions = [...state.sessions].sort((a, b) => {
+      const dateA = new Date(`${a.date}T${a.timeOfDay}`).getTime();
+      const dateB = new Date(`${b.date}T${b.timeOfDay}`).getTime();
+      return dateA - dateB;
+    });
+    const sortedBackups = [...backupHistory].sort((a, b) => Date.parse(a.exportedAt) - Date.parse(b.exportedAt));
+
+    return {
+      sessionCount: state.sessions.length,
+      backupCount: backupHistory.length,
+      oldestSession: sortedSessions[0] ? `${sortedSessions[0].date} ${sortedSessions[0].timeOfDay}` : null,
+      newestSession: sortedSessions.at(-1) ? `${sortedSessions.at(-1)!.date} ${sortedSessions.at(-1)!.timeOfDay}` : null,
+      oldestBackup: sortedBackups[0]?.exportedAt ?? null,
+      newestBackup: sortedBackups.at(-1)?.exportedAt ?? null,
+    };
+  }, [backupHistory, state.sessions]);
 
   const exportBackup = useCallback(() => {
     const backup = createBackupManifest(state, backupName.trim() || 'Phenomena backup');
@@ -256,7 +415,7 @@ export default function App() {
     a.download = `${(backup.name || 'phenomena-backup').toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${getTodayKey()}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    setBackupHistory((current) => [backup, ...current.filter((entry) => entry.exportedAt !== backup.exportedAt)].slice(0, 5));
+    setBackupHistory((current) => [backup, ...current.filter((entry) => entry.exportedAt !== backup.exportedAt)].slice(0, BACKUP_HISTORY_LIMIT));
   }, [backupName, state]);
 
   const importBackup = useCallback((e: ChangeEvent<HTMLInputElement>) => {
@@ -268,6 +427,7 @@ export default function App() {
       if (preview) {
         setImportPreview(preview);
         setBackupRestoreSelection(defaultBackupRestoreSelection());
+        setBackupItemSelection(defaultBackupItemSelection(preview.state));
         showImportMessage('Backup loaded. Review the preview before restoring.', 5000);
       } else {
         showImportMessage('Invalid backup file.', 4000);
@@ -278,18 +438,20 @@ export default function App() {
 
   const confirmImportBackup = useCallback(() => {
     if (!importPreview) return;
-    setState((current) => restoreBackupState(current, importPreview.state, backupRestoreSelection));
-    setBackupHistory((current) => [createBackupManifest(importPreview.state, importPreview.name), ...current].slice(0, 5));
+    setState((current) => restoreSelectedBackupItems(current, importPreview.state, backupRestoreSelection, backupItemSelection));
+    setBackupHistory((current) => [createBackupManifest(importPreview.state, importPreview.name), ...current].slice(0, BACKUP_HISTORY_LIMIT));
     setImportPreview(null);
     setBackupRestoreSelection(defaultBackupRestoreSelection());
+    setBackupItemSelection(defaultBackupItemSelection(state));
     showImportMessage('Backup restored successfully.', 4000);
-  }, [backupRestoreSelection, importPreview, setState, showImportMessage]);
+  }, [backupItemSelection, backupRestoreSelection, importPreview, setState, showImportMessage, state]);
 
   const cancelImportBackup = useCallback(() => {
     setImportPreview(null);
     setBackupRestoreSelection(defaultBackupRestoreSelection());
+    setBackupItemSelection(defaultBackupItemSelection(state));
     showImportMessage('Backup restore cancelled.', 3000);
-  }, [showImportMessage]);
+  }, [showImportMessage, state]);
 
   const previewBackupFromHistory = useCallback((backup: BackupManifest) => {
     setImportPreview({
@@ -300,14 +462,43 @@ export default function App() {
       format: backup.format,
     });
     setBackupRestoreSelection(defaultBackupRestoreSelection());
+    setBackupItemSelection(defaultBackupItemSelection(backup.state));
     showImportMessage(`Previewing backup "${backup.name}".`, 4000);
   }, [showImportMessage]);
+
+  const cleanupOldSessions = useCallback((olderThanDays: number) => {
+    const result = pruneSessionsOlderThan(state, olderThanDays);
+    if (!result.removedSessions) {
+      return 0;
+    }
+
+    setState(result.nextState);
+    setLastDeletedSession(null);
+    return result.removedSessions;
+  }, [state]);
+
+  const cleanupBackupHistory = useCallback((olderThanDays: number, keepRecentCount: number) => {
+    const result = pruneBackupHistory(backupHistory, olderThanDays, keepRecentCount);
+    if (!result.removedBackups) {
+      return 0;
+    }
+
+    setBackupHistory(result.nextHistory);
+    return result.removedBackups;
+  }, [backupHistory]);
 
   const backupDiff = useMemo<BackupDiffSummary | null>(() => {
     if (!importPreview) {
       return null;
     }
     return compareBackupState(state, importPreview.state);
+  }, [importPreview, state]);
+
+  const backupComparison = useMemo<BackupComparison | null>(() => {
+    if (!importPreview) {
+      return null;
+    }
+    return compareBackupItems(state, importPreview.state);
   }, [importPreview, state]);
 
   useEffect(() => {
@@ -337,6 +528,54 @@ export default function App() {
   }, [uiTheme]);
 
   useEffect(() => {
+    if (isStandalone) {
+      localStorage.removeItem(PWA_BANNER_DISMISSED_KEY);
+      setInstallBannerDismissed(false);
+    }
+  }, [isStandalone]);
+
+  useEffect(() => {
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone);
+    setIsStandalone(standalone);
+
+    const handleBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setDeferredInstallPrompt(event as BeforeInstallPromptEvent);
+    };
+
+    const handleAppInstalled = () => {
+      setDeferredInstallPrompt(null);
+      setInstallBannerDismissed(true);
+      localStorage.setItem(PWA_BANNER_DISMISSED_KEY, 'true');
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!('serviceWorker' in navigator) || !import.meta.env.PROD) {
+      return;
+    }
+
+    let cancelled = false;
+    void navigator.serviceWorker.register('/sw.js').then((registration) => {
+      if (!cancelled) {
+        setServiceWorkerRegistration(registration);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     const onFullscreenChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
     document.addEventListener('fullscreenchange', onFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
@@ -350,6 +589,19 @@ export default function App() {
     () => state.projects.find((project) => project.id === state.activeProjectId) ?? state.projects[0],
     [state.activeProjectId, state.projects],
   );
+
+  const openNewSession = useCallback((projectId?: string) => {
+    setWorkspaceView('today');
+    setSessionComposerProjectId(projectId ?? activeProject?.id ?? state.projects[0]?.id ?? null);
+    setSessionComposerRequest((current) => (current ?? 0) + 1);
+    setIsCommandPaletteOpen(false);
+    setCommandPaletteQuery('');
+  }, [activeProject?.id, state.projects]);
+
+  const openCommandPalette = useCallback(() => {
+    setIsCommandPaletteOpen(true);
+    setCommandPaletteQuery('');
+  }, []);
 
   const projectLookup = useMemo(() => state.projects.reduce<Record<string, Project>>((acc, project) => {
     acc[project.id] = project;
@@ -451,14 +703,9 @@ export default function App() {
     const timer = window.setInterval(() => {
       state.projects.forEach((project) => {
         if (shouldTriggerReminder(project)) {
-          if (notificationState === 'granted' && typeof Notification !== 'undefined') {
-            new Notification('Phenomena', {
-              body: `Time to return to ${project.name}. Maintain the momentum.`,
-              icon: '/vite.svg',
-            });
-          } else {
+          void showReminderNotification('Phenomena', `Time to return to ${project.name}.`).catch(() => {
             showToast(`Reminder: Time for ${project.name}.`, 'info', 4000);
-          }
+          });
           setState((current) => ({
             ...current,
             projects: current.projects.map((p) =>
@@ -469,7 +716,7 @@ export default function App() {
       });
     }, 60000);
     return () => window.clearInterval(timer);
-  }, [state.projects, notificationState, showToast]);
+  }, [showReminderNotification, state.projects, showToast]);
 
   useEffect(() => {
     if (!session?.user?.id || !hasSupabaseConfig || !supabase) {
@@ -509,9 +756,138 @@ export default function App() {
     }, {});
   }, [state.projects]);
 
+  const commandPaletteActions = useMemo<CommandPaletteAction[]>(() => [
+    {
+      id: 'new-session',
+      label: 'New session',
+      description: 'Open the session composer for the active project.',
+      shortcut: 'Ctrl/Cmd+Shift+N',
+      icon: 'plus',
+      run: () => openNewSession(activeProject?.id),
+    },
+    {
+      id: 'today',
+      label: 'Go to Today',
+      description: 'Return to the timer, notes, and ritual view.',
+      shortcut: 'Ctrl/Cmd+1',
+      icon: 'today',
+      run: () => setWorkspaceView('today'),
+    },
+    {
+      id: 'projects',
+      label: 'Go to Projects',
+      description: 'Open the project setup screen.',
+      shortcut: 'Ctrl/Cmd+2',
+      icon: 'projects',
+      run: () => setWorkspaceView('projects'),
+    },
+    {
+      id: 'insights',
+      label: 'Go to Insights',
+      description: 'Open summary and explore analytics.',
+      shortcut: 'Ctrl/Cmd+3',
+      icon: 'insights',
+      run: () => setWorkspaceView('insights'),
+    },
+    {
+      id: 'account',
+      label: 'Go to Account',
+      description: 'Open sync, backup, and security settings.',
+      shortcut: 'Ctrl/Cmd+4',
+      icon: 'account',
+      run: () => setWorkspaceView('account'),
+    },
+  ], [activeProject?.id, openNewSession]);
+
+  const showInstallBanner = !isStandalone && !installBannerDismissed;
+  const handleInstallPwa = useCallback(async () => {
+    if (!deferredInstallPrompt) {
+      return;
+    }
+
+    await deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    setDeferredInstallPrompt(null);
+    setInstallBannerDismissed(true);
+    localStorage.setItem(PWA_BANNER_DISMISSED_KEY, 'true');
+  }, [deferredInstallPrompt]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const isEditableTarget =
+        Boolean(target?.closest('input, textarea, select, [contenteditable="true"]')) ||
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement;
+
+      if (event.key === 'Escape' && isCommandPaletteOpen) {
+        setIsCommandPaletteOpen(false);
+        setCommandPaletteQuery('');
+        return;
+      }
+
+      if (!(event.metaKey || event.ctrlKey)) {
+        return;
+      }
+
+      if (event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        openCommandPalette();
+        return;
+      }
+
+      if (event.shiftKey && event.key.toLowerCase() === 'n' && !isEditableTarget) {
+        event.preventDefault();
+        openNewSession();
+        return;
+      }
+
+      if (isEditableTarget) {
+        return;
+      }
+
+      if (event.key === '1') {
+        event.preventDefault();
+        setWorkspaceView('today');
+      } else if (event.key === '2') {
+        event.preventDefault();
+        setWorkspaceView('projects');
+      } else if (event.key === '3') {
+        event.preventDefault();
+        setWorkspaceView('insights');
+      } else if (event.key === '4') {
+        event.preventDefault();
+        setWorkspaceView('account');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isCommandPaletteOpen, openCommandPalette, openNewSession]);
+
   return (
     <div className={`app-container ${isFullscreen ? 'is-fullscreen' : ''} ${uiTheme === 'light' ? 'theme-light' : 'theme-dark'} ${mode === 'sprint' ? 'focus-dim-bg' : ''}`}>
       <main className={`workspace-main ${isFullscreen ? 'fullscreen-mode' : 'shell'}`} style={{ paddingBottom: 'calc(4rem + env(safe-area-inset-bottom))' }}>
+        {showInstallBanner ? (
+          <PwaInstallBanner
+            canInstall={Boolean(deferredInstallPrompt)}
+            isStandalone={isStandalone}
+            isIos={/iphone|ipad|ipod/i.test(navigator.userAgent)}
+            onInstall={handleInstallPwa}
+            onDismiss={() => setInstallBannerDismissed(true)}
+          />
+        ) : null}
+        <CommandPalette
+          open={isCommandPaletteOpen}
+          query={commandPaletteQuery}
+          setQuery={setCommandPaletteQuery}
+          actions={commandPaletteActions}
+          onClose={() => {
+            setIsCommandPaletteOpen(false);
+            setCommandPaletteQuery('');
+          }}
+        />
         <Suspense fallback={<TodayViewSkeleton />}>
           {workspaceView === 'today' && (
             <TodayView
@@ -541,13 +917,15 @@ export default function App() {
               setToast={setToast}
               restoreSession={restoreSession}
               addSession={addSession}
+              sessionComposerRequest={sessionComposerRequest}
+              sessionComposerProjectId={sessionComposerProjectId}
             />
           )}
 
           {workspaceView === 'projects' && (
             <ProjectsView
               key="projects"
-              activeProjetos={activeProjetos}
+              activeProjects={activeProjetos}
               activeProject={activeProject}
               setActiveProject={setActiveProject}
               setMode={setMode}
@@ -555,6 +933,7 @@ export default function App() {
               updateProject={updateProject}
               createNewProject={createNewProject}
               archiveActiveProject={archiveActiveProject}
+              duplicateActiveProject={duplicateActiveProject}
               newProjectName={newProjectName}
               setNewProjectName={setNewProjectName}
               newProjectNote={newProjectNote}
@@ -567,12 +946,17 @@ export default function App() {
               addAttachment={addAttachment}
               archivedProjetos={archivedProjetos}
               restoreProject={restoreProject}
+              mergeIntoActiveProject={mergeArchivedProjectIntoActive}
               ambientPresets={ambientPresets}
               toggleFullscreen={toggleFullscreen}
               isFullscreen={isFullscreen}
               toggleReminder={toggleReminder}
               notificationState={notificationState}
               getReminderStatus={getReminderStatus}
+              reminderEvents={reminderEvents}
+              acknowledgeReminder={acknowledgeReminder}
+              refreshReminderInbox={refreshReminderInbox}
+              projectNameMap={projectNameMap}
             />
           )}
 
@@ -642,10 +1026,6 @@ export default function App() {
               setUiTheme={setUiTheme}
               importMessage={importMessage}
               setImportMessage={setImportMessage}
-              activeProject={activeProject}
-              updateProject={updateProject}
-              reminderStatus={getReminderStatus(notificationState, activeProject?.reminderEnabled || false)}
-              enableNotifications={toggleReminder}
               fileInputRef={fileInputRef}
               state={state}
               setState={setState}
@@ -660,15 +1040,19 @@ export default function App() {
               backupHistory={backupHistory}
               importPreview={importPreview}
               backupDiff={backupDiff}
+              backupComparison={backupComparison}
               backupRestoreSelection={backupRestoreSelection}
+              backupItemSelection={backupItemSelection}
               setBackupRestoreSelection={setBackupRestoreSelection}
+              setBackupItemSelection={setBackupItemSelection}
               confirmImportBackup={confirmImportBackup}
               cancelImportBackup={cancelImportBackup}
               previewBackupFromHistory={previewBackupFromHistory}
-              reminderEvents={reminderEvents}
-              acknowledgeReminder={acknowledgeReminder}
-              refreshReminderInbox={refreshReminderInbox}
-              projectNameMap={projectNameMap}
+              cleanupOldSessions={cleanupOldSessions}
+              cleanupBackupHistory={cleanupBackupHistory}
+              retentionSummary={retentionSummary}
+              retentionMessage={retentionMessage}
+              setRetentionMessage={setRetentionMessage}
             />
           )}
         </Suspense>
@@ -676,6 +1060,16 @@ export default function App() {
 
       <nav className="workspace-nav">
         <div className="nav-content">
+          <button
+            className="nav-item"
+            onClick={() => setIsCommandPaletteOpen(true)}
+            aria-label="Open command palette"
+            title="Command palette"
+            type="button"
+          >
+            <Command size={20} />
+            <span>Search</span>
+          </button>
           <button
             className={`nav-item ${workspaceView === 'today' ? 'active' : ''}`}
             onClick={() => setWorkspaceView('today')}

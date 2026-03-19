@@ -1,10 +1,11 @@
 import React, { memo } from 'react';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import type { Session } from '@supabase/supabase-js';
+import { BackupRestoreModal } from '../common/BackupRestoreModal';
 import { CloudPanel } from '../common/CloudPanel';
 import { LocalDataPanel } from '../common/LocalDataPanel';
 import { PreferencesPanel } from '../common/PreferencesPanel';
-import type { AppState, BackupDiffSummary, BackupManifest, BackupPreview, BackupRestoreSelection, NuvemStatus, Profile, Project, ReminderEvent, SyncQueueState, UiTheme } from '../../types';
+import type { AppState, BackupComparison, BackupDiffSummary, BackupItemSelection, BackupManifest, BackupPreview, BackupRestoreSelection, DataRetentionSummary, NuvemStatus, Profile, Project, SyncQueueState, UiTheme } from '../../types';
 import type { SyncConflict } from '../../utils/sync';
 
 interface AccountViewProps {
@@ -43,10 +44,6 @@ interface AccountViewProps {
   applyProfileDefaultsToActiveProject: () => void;
   profileMessage: string;
   passwordMessage: string;
-  activeProject: Project | undefined;
-  updateProject: (updater: (project: Project) => Project) => void;
-  reminderStatus: string;
-  enableNotifications: () => void;
   exportBackup: () => void;
   fileInputRef: MutableRefObject<HTMLInputElement | null>;
   importBackup: (event: React.ChangeEvent<HTMLInputElement>) => void;
@@ -55,20 +52,24 @@ interface AccountViewProps {
   setUiTheme: Dispatch<SetStateAction<UiTheme>>;
   uiTheme: UiTheme;
   formatCloudTimestamp: (value: string | null) => string;
-  reminderEvents: ReminderEvent[];
-  acknowledgeReminder: (id: string) => void;
-  refreshReminderInbox: () => void;
-  projectNameMap: Record<string, string>;
   backupName: string;
   setBackupName: Dispatch<SetStateAction<string>>;
   backupHistory: BackupManifest[];
   importPreview: BackupPreview | null;
   backupDiff: BackupDiffSummary | null;
+  backupComparison: BackupComparison | null;
   backupRestoreSelection: BackupRestoreSelection;
+  backupItemSelection: BackupItemSelection;
   setBackupRestoreSelection: Dispatch<SetStateAction<BackupRestoreSelection>>;
+  setBackupItemSelection: Dispatch<SetStateAction<BackupItemSelection>>;
   confirmImportBackup: () => void;
   cancelImportBackup: () => void;
   previewBackupFromHistory: (backup: BackupManifest) => void;
+  cleanupOldSessions: (olderThanDays: number) => number;
+  cleanupBackupHistory: (olderThanDays: number, keepRecentCount: number) => number;
+  retentionSummary: DataRetentionSummary;
+  retentionMessage: string;
+  setRetentionMessage: Dispatch<SetStateAction<string>>;
 }
 
 function AccountViewComponent({
@@ -78,10 +79,9 @@ function AccountViewComponent({
   authMessage, remoteSnapshot, getProjectAttachmentCount, normalizedMessage, state,
   syncConflict, syncQueue, pullCloudState, pushLocalState, replaceCloudWithLocal, cloudStatus,
   remoteLoaded, profile, setProfile, updateProfile, applyProfileDefaultsToActiveProject, profileMessage, passwordMessage,
-  activeProject, updateProject, reminderStatus, enableNotifications, exportBackup, fileInputRef,
-  importBackup, importMessage, setUiTheme, uiTheme, formatCloudTimestamp,
-  reminderEvents, acknowledgeReminder, refreshReminderInbox, projectNameMap,
-  backupName, setBackupName, backupHistory, importPreview, backupDiff, backupRestoreSelection, setBackupRestoreSelection, confirmImportBackup, cancelImportBackup, previewBackupFromHistory
+  exportBackup, fileInputRef, importBackup, importMessage, setUiTheme, uiTheme, formatCloudTimestamp,
+  backupName, setBackupName, backupHistory, importPreview, backupDiff, backupComparison, backupRestoreSelection, backupItemSelection, setBackupRestoreSelection, setBackupItemSelection, confirmImportBackup, cancelImportBackup, previewBackupFromHistory,
+  cleanupOldSessions, cleanupBackupHistory, retentionSummary, retentionMessage, setRetentionMessage,
 }: AccountViewProps) {
   return (
     <section className="page-container workspace-account">
@@ -96,18 +96,30 @@ function AccountViewComponent({
         }} />
 
         <LocalDataPanel {...{
-          activeProject, updateProject, enableNotifications, reminderStatus,
-  exportBackup, fileInputRef, importBackup, importMessage,
-  session, profile, authPassword, setAuthPassword, authPasswordConfirm,
-  setAuthPasswordConfirm, updatePassword, passwordMessage,
-          reminderEvents, acknowledgeReminder, refreshReminderInbox, projectNameMap,
-          backupName, setBackupName, backupHistory, importPreview, backupDiff, backupRestoreSelection, setBackupRestoreSelection, confirmImportBackup, cancelImportBackup, previewBackupFromHistory
+          exportBackup, fileInputRef, importBackup, importMessage,
+          session, profile, authPassword, setAuthPassword, authPasswordConfirm,
+          setAuthPasswordConfirm, updatePassword, passwordMessage,
+          backupName, setBackupName, backupHistory, previewBackupFromHistory,
+          cleanupOldSessions, cleanupBackupHistory, retentionSummary, retentionMessage, setRetentionMessage
         }} />
       </div>
 
       <PreferencesPanel {...{
         session, profile, applyProfileDefaultsToActiveProject, uiTheme, setUiTheme,
         updateProfile, profileMessage
+      }} />
+
+      <BackupRestoreModal {...{
+        open: Boolean(importPreview),
+        importPreview,
+        backupDiff,
+        backupComparison,
+        backupRestoreSelection,
+        backupItemSelection,
+        setBackupRestoreSelection,
+        setBackupItemSelection,
+        confirmImportBackup,
+        cancelImportBackup,
       }} />
     </section>
   );

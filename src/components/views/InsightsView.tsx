@@ -5,6 +5,7 @@ import { HistoryPanel } from '../common/HistoryPanel';
 import { SessionEditorModal } from '../common/SessionEditorModal';
 import { ToastNotification } from '../common/ToastNotification';
 import { SessionDeleteModal } from '../common/SessionDeleteModal';
+import { BarChart2, Layers } from 'lucide-react';
 import { outcomeOptions } from '../../constants';
 import { createSessionDraft } from '../../utils/session';
 import type { SessionsByProjectId } from '../../utils/analytics';
@@ -60,6 +61,7 @@ function InsightsViewComponent({
   const [editingSession, setEditingSession] = useState<SessionRecord | null>(null);
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
   const [isAddingSession, setIsAddingSession] = useState(false);
+  const [insightsMode, setInsightsMode] = useState<'summary' | 'explore'>('summary');
 
   const dashboard = useMemo(() => getCrossProjectSummary(state.projects, sessionsByProject), [sessionsByProject, state.projects]);
   const analytics = useMemo(() => safeActiveProject ? getProjectAnalytics(safeActiveProject, activeProjectSessions) : null, [activeProjectSessions, safeActiveProject]);
@@ -100,8 +102,8 @@ function InsightsViewComponent({
         >
           <div className="panel-head" style={{ marginBottom: '12px' }}>
             <div>
-              <p className="eyebrow" style={{ color: 'var(--accent)' }}>Insights starter</p>
-              <h2 style={{ margin: 0 }}>Nothing to chart yet</h2>
+              <p className="eyebrow" style={{ color: 'var(--accent)' }}>Insights</p>
+              <h2 style={{ margin: 0 }}>No data yet</h2>
             </div>
           </div>
           <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.6 }}>
@@ -110,26 +112,65 @@ function InsightsViewComponent({
         </section>
       ) : null}
 
+      <section className="card panel" style={{ marginBottom: '24px', border: '1px solid var(--panel-border)', background: 'var(--surface-soft)' }} aria-label="Insights mode switch">
+        <div className="panel-head" style={{ marginBottom: '0' }}>
+          <div>
+            <p className="eyebrow" style={{ color: 'var(--accent)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}><Layers size={14} /> Analytics</p>
+            <h2 style={{ margin: 0 }}>{insightsMode === 'summary' ? 'Summary' : 'Explore'}</h2>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button
+              className={insightsMode === 'summary' ? 'primary' : 'ghost'}
+              type="button"
+              onClick={() => setInsightsMode('summary')}
+              aria-pressed={insightsMode === 'summary'}
+              style={{ padding: '8px 12px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <BarChart2 size={14} /> Summary
+            </button>
+            <button
+              className={insightsMode === 'explore' ? 'primary' : 'ghost'}
+              type="button"
+              onClick={() => setInsightsMode('explore')}
+              aria-pressed={insightsMode === 'explore'}
+              style={{ padding: '8px 12px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Layers size={14} /> Explore
+            </button>
+          </div>
+        </div>
+        <p style={{ margin: '12px 0 0', color: 'var(--muted)', lineHeight: 1.5 }}>
+          Summary shows the main metrics. Explore shows charts, comparisons, and session history.
+        </p>
+      </section>
+
       <DashboardBanner {...{
         dashboard, chartRange, setChartRange, comparisonMetric, setComparisonMetric,
         projectComparisonSeries, activeChartPoint, setActiveChartPoint, recentDaySeries
       }} />
 
-      <div className="two-column-layout">
+      {insightsMode === 'summary' ? (
         <ProjectAnatomyPanel {...{
           activeProject: safeActiveProject, analytics, outcomeLabel, outcomeSeries,
-          activeChartPoint, setActiveChartPoint, moodSeries
+          activeChartPoint, setActiveChartPoint, moodSeries, showCharts: false
         }} />
+      ) : (
+        <div className="two-column-layout">
+          <ProjectAnatomyPanel {...{
+            activeProject: safeActiveProject, analytics, outcomeLabel, outcomeSeries,
+            activeChartPoint, setActiveChartPoint, moodSeries, showCharts: true
+          }} />
 
-        <HistoryPanel {...{
-          historyQuery, setHistoryQuery, historyProjectFilter, setHistoryProjectFilter,
-          activeProject, historyOutcomeFilter, setHistoryOutcomeFilter, outcomeOptions,
-          filteredHistory: historySessions, projectNameMap, outcomeLabel,
-          onEditSession: (session: SessionRecord) => setEditingSession(session),
-          onDeleteSession: (id: string) => setSessionToDelete(id),
-          onAddSession: () => setIsAddingSession(true)
-        }} />
-      </div>
+          <HistoryPanel {...{
+            historyQuery, setHistoryQuery, historyProjectFilter, setHistoryProjectFilter,
+            activeProject, historyOutcomeFilter, setHistoryOutcomeFilter, outcomeOptions,
+            filteredHistory: historySessions, projectNameMap, outcomeLabel,
+            onEditSession: (session: SessionRecord) => setEditingSession(session),
+            onDeleteSession: (id: string) => setSessionToDelete(id),
+            onAddSession: () => setIsAddingSession(true)
+          }} />
+        </div>
+      )}
 
       <SessionEditorModal
         open={isAddingSession || Boolean(editingSession)}

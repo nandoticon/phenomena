@@ -3,18 +3,18 @@ import { FolderOpen, Plus } from 'lucide-react';
 import type { Project } from '../../types';
 
 interface ProjectListProps {
-  activeProjetos: Project[];
+  activeProjects: Project[];
   activeProject: Project | undefined;
   setActiveProject: (projectId: string) => void;
   setMode: (mode: 'idle' | 'sprint' | 'break') => void;
   setSecondsLeft: (value: number) => void;
 }
 
-export function ProjectList({ activeProjetos, activeProject, setActiveProject, setMode, setSecondsLeft }: ProjectListProps) {
+export function ProjectList({ activeProjects, activeProject, setActiveProject, setMode, setSecondsLeft }: ProjectListProps) {
   return (
     <div className="project-list" style={{ marginBottom: '24px' }}>
-      {activeProjetos && activeProjetos.length > 0 ? (
-        activeProjetos.map((project) => (
+      {activeProjects && activeProjects.length > 0 ? (
+        activeProjects.map((project) => (
           <button
             className={activeProject && project.id === activeProject.id ? 'project-card active' : 'project-card'}
             key={project.id}

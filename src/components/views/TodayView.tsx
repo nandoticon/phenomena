@@ -51,6 +51,8 @@ interface TodayViewProps {
   setToast: React.Dispatch<React.SetStateAction<{ message: string; visible: boolean; type?: 'info' | 'success' } | null>>;
   restoreSession: () => void;
   addSession: (session: SessionRecord) => void;
+  sessionComposerRequest: number | null;
+  sessionComposerProjectId: string | null;
 }
 
 function TodayViewComponent({
@@ -59,6 +61,7 @@ function TodayViewComponent({
   formatTime, updateProject, sessionNote, setSessionNote,
   restartCue, setRestartCue, deleteSession, updateSession,
   isPaused, togglePause, toast, setToast, restoreSession, addSession
+  , sessionComposerRequest, sessionComposerProjectId
 }: TodayViewProps) {
   const safeActiveProject = activeProject ?? state.projects[0];
   const activeProjectSessions = useMemo(() => {
@@ -68,6 +71,7 @@ function TodayViewComponent({
   const [editingSession, setEditingSession] = React.useState<SessionRecord | null>(null);
   const [sessionToDelete, setSessionToDelete] = React.useState<string | null>(null);
   const [isAddingSession, setIsAddingSession] = React.useState(false);
+  const lastComposerRequest = React.useRef<number | null>(null);
 
   React.useEffect(() => {
     if (editingSession || sessionToDelete || isAddingSession) {
@@ -90,6 +94,14 @@ function TodayViewComponent({
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [editingSession, sessionToDelete, isAddingSession]);
+
+  React.useEffect(() => {
+    if (sessionComposerRequest === null || sessionComposerRequest === lastComposerRequest.current) {
+      return;
+    }
+    lastComposerRequest.current = sessionComposerRequest;
+    setIsAddingSession(true);
+  }, [sessionComposerRequest]);
 
   const recentSessions = useMemo(() => {
     return activeProjectSessions.slice(-5).reverse();
@@ -175,13 +187,13 @@ function TodayViewComponent({
       <header className="hero">
         <div className="hero-content">
           <p className="eyebrow" style={{ color: 'var(--accent)' }}>Active Project</p>
-          <h1 style={{ margin: '8px 0' }}>{activeProject?.name || 'No Project Selected'}</h1>
+          <h1 style={{ margin: '8px 0' }}>{activeProject?.name || 'No project selected'}</h1>
           <p className="lede">{activeProject ? projectGoal(activeProject) : 'Select a project to start writing.'}</p>
 
           {activeProject?.restartMode && (
             <div className="alert" style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
               <BellRing size={18} />
-              <span><strong>Restart Mode Active:</strong> Complete the recovery ritual to unlock the timer.</span>
+              <span><strong>Restart mode on:</strong> Complete the recovery ritual to unlock the timer.</span>
             </div>
           )}
         </div>
@@ -211,20 +223,20 @@ function TodayViewComponent({
           <div className="panel-head" style={{ marginBottom: '12px' }}>
             <div>
               <p className="eyebrow" style={{ color: 'var(--accent)' }}>First session setup</p>
-              <h2 style={{ margin: 0 }}>Start with a small win</h2>
+              <h2 style={{ margin: 0 }}>Set up your project</h2>
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '16px', alignItems: 'start' }}>
             <div style={{ color: 'var(--muted)', lineHeight: 1.6 }}>
-              <p style={{ marginTop: 0 }}>Your workspace already has a starter project. You can begin immediately and refine the defaults later.</p>
+              <p style={{ marginTop: 0 }}>Your workspace already has a default project. You can begin immediately and adjust the defaults later.</p>
               <ul style={{ margin: 0, paddingLeft: '18px' }}>
                 <li>Run a short focused sprint.</li>
-                <li>Capture a return cue after the session.</li>
+                <li>Add a return cue after the session.</li>
                 <li>Add another project only when the split is obvious.</li>
               </ul>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <button className="primary" onClick={() => setShowOnboardingWizard(true)} type="button">Open setup wizard</button>
+              <button className="primary" onClick={() => setShowOnboardingWizard(true)} type="button">Open setup</button>
               <button className="ghost" onClick={startSprint} type="button">Start first sprint</button>
               <p style={{ margin: 0, color: 'var(--secondary)', fontSize: '0.9rem' }}>
                 Default timers and reminders can be adjusted from Projects and Account once you have a first pass of data.
@@ -284,7 +296,7 @@ function TodayViewComponent({
       <SessionEditorModal
         open={isAddingSession || Boolean(editingSession)}
         mode={editingSession ? 'edit' : 'create'}
-        session={editingSession || (isAddingSession ? createSessionDraft(activeProject?.id || state.projects[0]?.id || '') : null)}
+        session={editingSession || (isAddingSession ? createSessionDraft(sessionComposerProjectId || activeProject?.id || state.projects[0]?.id || '') : null)}
         projects={state.projects}
         onSubmit={(session) => {
           if (editingSession) {

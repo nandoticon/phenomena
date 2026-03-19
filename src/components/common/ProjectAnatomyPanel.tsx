@@ -26,9 +26,10 @@ interface ProjectAnatomyPanelProps {
   activeChartPoint: ChartPoint | null;
   setActiveChartPoint: React.Dispatch<React.SetStateAction<ChartPoint | null>>;
   moodSeries: ChartPoint[];
+  showCharts?: boolean;
 }
 
-export function ProjectAnatomyPanel({ activeProject, analytics, outcomeLabel, outcomeSeries, activeChartPoint, setActiveChartPoint, moodSeries }: ProjectAnatomyPanelProps) {
+export function ProjectAnatomyPanel({ activeProject, analytics, outcomeLabel, outcomeSeries, activeChartPoint, setActiveChartPoint, moodSeries, showCharts = true }: ProjectAnatomyPanelProps) {
   const safeAnalytics = analytics ?? {
     totalMinutes: 0,
     totalSessions: 0,
@@ -48,7 +49,7 @@ export function ProjectAnatomyPanel({ activeProject, analytics, outcomeLabel, ou
     <article className="card panel analytics-panel" style={{ display: 'flex', flexDirection: 'column' }}>
       <div className="panel-head">
         <div>
-          <p className="eyebrow" style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '4px' }}><Disc3 size={14} /> Project Focus</p>
+          <p className="eyebrow" style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '4px' }}><Disc3 size={14} /> Project summary</p>
           <h2>Details: {activeProject.name}</h2>
         </div>
       </div>
@@ -92,7 +93,7 @@ export function ProjectAnatomyPanel({ activeProject, analytics, outcomeLabel, ou
           </ul>
         </div>
         <div className="project-card" style={{ background: 'var(--surface-soft)', border: '1px solid var(--panel-border)', gridColumn: '1 / -1' }}>
-          <strong>Why the trend looks this way</strong>
+          <strong>Trend drivers</strong>
           <ul style={{ margin: '8px 0 0', paddingLeft: '18px', color: 'var(--muted)', lineHeight: 1.5 }}>
             {safeAnalytics.trendDrivers.map((driver: TrendDriver) => (
               <li key={driver.title}>
@@ -104,16 +105,18 @@ export function ProjectAnatomyPanel({ activeProject, analytics, outcomeLabel, ou
         </div>
       </div>
 
-      <div className="two-up" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-        <div>
-          <h3 style={{ fontSize: '1rem', color: 'var(--muted)', marginBottom: '16px' }}>Session Outcomes</h3>
-          <BarChart title="" points={outcomeSeries} accent="var(--success)" activePoint={activeChartPoint} onPointFocus={setActiveChartPoint} />
+      {showCharts ? (
+        <div className="two-up" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+          <div>
+            <h3 style={{ fontSize: '1rem', color: 'var(--muted)', marginBottom: '16px' }}>Session Outcomes</h3>
+            <BarChart title="" points={outcomeSeries} accent="var(--success)" activePoint={activeChartPoint} onPointFocus={setActiveChartPoint} />
+          </div>
+          <div style={{ paddingTop: '24px', borderTop: '1px solid var(--panel-border)' }}>
+            <h3 style={{ fontSize: '1rem', color: 'var(--muted)', marginBottom: '16px' }}>Starting Moods</h3>
+            <BarChart title="" points={moodSeries} activePoint={activeChartPoint} onPointFocus={setActiveChartPoint} />
+          </div>
         </div>
-        <div style={{ paddingTop: '24px', borderTop: '1px solid var(--panel-border)' }}>
-          <h3 style={{ fontSize: '1rem', color: 'var(--muted)', marginBottom: '16px' }}>Starting Moods</h3>
-          <BarChart title="" points={moodSeries} activePoint={activeChartPoint} onPointFocus={setActiveChartPoint} />
-        </div>
-      </div>
+      ) : null}
     </article>
   );
 }

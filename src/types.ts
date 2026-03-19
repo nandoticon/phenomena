@@ -174,6 +174,43 @@ export interface BackupDiffSummary {
   notes: string[];
 }
 
+export interface BackupItemSelection {
+  projects: Record<string, boolean>;
+  sessions: Record<string, boolean>;
+}
+
+export interface DataRetentionSummary {
+  sessionCount: number;
+  backupCount: number;
+  oldestSession: string | null;
+  newestSession: string | null;
+  oldestBackup: string | null;
+  newestBackup: string | null;
+}
+
+export interface BackupProjectChange {
+  id: string;
+  label: string;
+  status: 'added' | 'removed' | 'updated';
+  notes: string[];
+  current?: Project;
+  imported?: Project;
+}
+
+export interface BackupSessionChange {
+  id: string;
+  label: string;
+  status: 'added' | 'removed' | 'updated';
+  notes: string[];
+  current?: SessionRecord;
+  imported?: SessionRecord;
+}
+
+export interface BackupComparison {
+  projectChanges: BackupProjectChange[];
+  sessionChanges: BackupSessionChange[];
+}
+
 export interface ProjectRow {
   user_id: string;
   project_id: string;

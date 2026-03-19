@@ -52,12 +52,12 @@ export function getStreakLabel(lastCompletionDate: string | null, streak: number
     return 'No streak yet. Start a quick session to get on the board.';
   }
   if (lastCompletionDate === today) {
-    return `You've worked today. Current streak: ${streak} day${streak === 1 ? '' : 's'}.`;
+    return `You've worked today. Streak: ${streak} day${streak === 1 ? '' : 's'}.`;
   }
   if (getDayDiff(lastCompletionDate, today) === 1) {
-    return `Yesterday was good. Keep the momentum today: ${streak} days.`;
+    return `You worked yesterday. Streak: ${streak} day${streak === 1 ? '' : 's'}.`;
   }
-  return 'The streak can be saved. Start a short session today.';
+  return 'Streak paused. Start a short session today.';
 }
 
 export function getReminderStatus(notificationState: NotificationState, reminderEnabled: boolean): string {
@@ -193,9 +193,9 @@ function summarizeWindowTrend(
   const cadenceDetail = recentGap === null || previousGap === null
     ? 'There are not enough sessions to compare cadence yet.'
     : recentGap < previousGap
-      ? `Your spacing tightened from about ${previousGap} day${previousGap === 1 ? '' : 's'} between sessions to ${recentGap} day${recentGap === 1 ? '' : 's'}, which usually explains improved momentum.`
-      : recentGap > previousGap
-        ? `Session spacing widened from about ${previousGap} day${previousGap === 1 ? '' : 's'} to ${recentGap} day${recentGap === 1 ? '' : 's'}, which makes the trend feel more uneven.`
+        ? `Your spacing tightened from about ${previousGap} day${previousGap === 1 ? '' : 's'} between sessions to ${recentGap} day${recentGap === 1 ? '' : 's'}.`
+        : recentGap > previousGap
+          ? `Session spacing widened from about ${previousGap} day${previousGap === 1 ? '' : 's'} to ${recentGap} day${recentGap === 1 ? '' : 's'}.`
         : `Session spacing stayed steady at about ${recentGap} day${recentGap === 1 ? '' : 's'} between sessions.`;
 
   const qualityDirection: TrendDriver['direction'] =
@@ -468,24 +468,24 @@ export function getCoachingInsight(project: Project, state: { sessions: SessionR
   let message = '';
   if (state.energy === 'low') {
     message = sameFocus.length >= 2 && dominantResultado
-      ? `You survive these low-tide days by playing it safe (${outcomeLabel(dominantResultado)}). Keep your goals manageable today. Don't push too hard.`
-      : 'Set very small goals. Edit a single sentence if you have to.';
+      ? `Low-energy days usually lead to ${outcomeLabel(dominantResultado)}. Keep the target small today.`
+      : 'Set a very small goal. Edit a single sentence if needed.';
   } else if (state.focus === 'scattered') {
     message = sameEnergy.length >= 2 && dominantResultado
-      ? `When your focus is low, you often rely on (${outcomeLabel(dominantResultado)}). Start with the easiest task and remove distractions.`
-      : 'Try a focused 15-minute sprint and leave a clear starting point for tomorrow.';
+      ? `When focus is low, you often land on ${outcomeLabel(dominantResultado)}. Start with the easiest task.`
+      : 'Try a 15-minute sprint and leave a clear starting point for next time.';
   } else if (state.mood === 'anxious') {
     message = sameFocus.length >= 2
-      ? `Anxious days on this project respond better to low-pressure work. Your history leans towards ${outcomeLabel(dominantResultado)} sessions; lower the target and stay close to the text.`
-      : 'Focus on light tasks: clean a paragraph or list three scene ideas. Work without forcing it.';
+      ? `Anxious days on this project work better with low-pressure tasks. Your history leans toward ${outcomeLabel(dominantResultado)} sessions.`
+      : 'Focus on a light task: clean a paragraph or list three ideas.';
   } else if (project.streak >= 4 && weeklyMinutos >= 60) {
-    message = `Your pacing is strong in ${project.name}. With ${weeklyMinutos} minutes this week, you can manage a ${bestSprint}-minute sprint today.`;
+    message = `Your pacing is strong in ${project.name}. With ${weeklyMinutos} minutes this week, a ${bestSprint}-minute sprint should fit.`;
   } else {
-    message = `Tackle one small piece of the project. Focus on that entirely. Start the timer.`;
+    message = `Tackle one small piece of the project. Start the timer.`;
   }
 
   const evidence = sessions.length
-    ? `Based on ${sessions.length} recorded session${sessions.length === 1 ? '' : 's'} on this file, your strongest mood is ${analytics.bestMood}, your most common victory is ${outcomeLabel(dominantResultado)}, your best writing hour is ${analytics.bestTime}, and ${analytics.restartRecoveryRate}% of restart sessions recovered within two days.`
+    ? `Based on ${sessions.length} recorded session${sessions.length === 1 ? '' : 's'} on this project, your strongest mood is ${analytics.bestMood}, your most common outcome is ${outcomeLabel(dominantResultado)}, your best time is ${analytics.bestTime}, and ${analytics.restartRecoveryRate}% of restart sessions recovered within two days.`
     : 'No deep history on this project yet. Insights will improve as you log more sessions.';
 
   return { message, evidence };
@@ -494,11 +494,11 @@ export function getCoachingInsight(project: Project, state: { sessions: SessionR
 export function getRecoveryMessage(project: Project): string {
   const today = getTodayKey();
   if (!project.lastCompletionDate || project.lastCompletionDate === today) {
-    return 'No recovery needed. Protect the rhythm with one more simple dive.';
+    return 'No recovery needed. Keep the next session simple.';
   }
   const diff = getDayDiff(project.lastCompletionDate, today);
   if (diff === 1) {
-    return 'You only missed one day. Prepare normally and keep the target small.';
+    return 'You missed one day. Keep the target small.';
   }
   return `You haven't worked on ${project.name} for ${diff} days. Return to it and log a small win.`;
 }

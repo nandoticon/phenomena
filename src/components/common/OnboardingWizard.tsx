@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { createPortal } from 'react-dom';
+import type { MutableRefObject } from 'react';
 import { goalLibrary } from '../../constants';
 import type { Project } from '../../types';
+import { Dialog } from './Dialog';
 
 export const ONBOARDING_STORAGE_KEY = 'phenomena-onboarding-complete';
 
@@ -22,7 +22,6 @@ export function OnboardingWizard({ open, project, onApply, onClose }: Onboarding
   const [breakMinutes, setBreakMinutes] = useState(project.breakMinutes);
   const [reminderEnabled, setReminderEnabled] = useState(project.reminderEnabled);
   const [reminderTime, setReminderTime] = useState(project.reminderTime);
-  const dialogRef = useRef<HTMLDivElement | null>(null);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -39,19 +38,6 @@ export function OnboardingWizard({ open, project, onApply, onClose }: Onboarding
     setReminderEnabled(project.reminderEnabled);
     setReminderTime(project.reminderTime);
   }, [open, project]);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    const previousFocus = document.activeElement as HTMLElement | null;
-    nameInputRef.current?.focus();
-
-    return () => {
-      previousFocus?.focus?.();
-    };
-  }, [open]);
 
   const completeSetup = () => {
     onApply({
@@ -72,67 +58,32 @@ export function OnboardingWizard({ open, project, onApply, onClose }: Onboarding
     onClose();
   };
 
-  const trapFocus = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Escape') {
-      skipSetup();
-      return;
-    }
-
-    if (event.key !== 'Tab' || !dialogRef.current) {
-      return;
-    }
-
-    const focusable = Array.from(
-      dialogRef.current.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-      ),
-    );
-
-    if (!focusable.length) {
-      return;
-    }
-
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
-  };
-
   if (!open) {
     return null;
   }
 
-  return createPortal(
-    <div className="modal-overlay" onClick={skipSetup}>
-      <div
-        ref={dialogRef}
-        className="modal-content card"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="onboarding-wizard-title"
-        aria-describedby="onboarding-wizard-description"
-        tabIndex={-1}
-        onClick={(event) => event.stopPropagation()}
-        onKeyDown={trapFocus}
-        style={{ maxWidth: '720px' }}
-      >
+  return (
+    <Dialog
+      open={open}
+      onClose={skipSetup}
+      className="modal-content card"
+      style={{ maxWidth: '720px' }}
+      labelledBy="onboarding-wizard-title"
+      describedBy="onboarding-wizard-description"
+      initialFocusRef={nameInputRef as unknown as MutableRefObject<HTMLElement | null>}
+    >
         <div className="panel-head" style={{ alignItems: 'flex-start' }}>
           <div>
-            <p className="eyebrow" style={{ color: 'var(--accent)', marginBottom: '8px' }}>Setup Wizard</p>
-            <h3 id="onboarding-wizard-title" style={{ margin: 0 }}>Set up your first workspace</h3>
+            <p className="eyebrow" style={{ color: 'var(--accent)', marginBottom: '8px' }}>Project setup</p>
+            <h3 id="onboarding-wizard-title" style={{ margin: 0 }}>Set up your project</h3>
           </div>
-          <button className="ghost" type="button" onClick={skipSetup} aria-label="Skip setup wizard">
+          <button className="ghost" type="button" onClick={skipSetup} aria-label="Skip setup">
             Skip
           </button>
         </div>
 
         <p id="onboarding-wizard-description" style={{ marginTop: 0, color: 'var(--muted)', lineHeight: 1.6 }}>
-          Use this guided setup to shape the starter project, choose a realistic timer, and decide whether reminders should be on.
+          Use this setup to name the project, choose a timer, and decide whether reminders should be on.
         </p>
 
         <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
@@ -180,7 +131,7 @@ export function OnboardingWizard({ open, project, onApply, onClose }: Onboarding
         {step === 1 ? (
           <div style={{ display: 'grid', gap: '16px' }}>
             <div>
-              <p style={{ margin: '0 0 12px', color: 'var(--muted)' }}>Pick a starter goal that feels small enough to finish today.</p>
+              <p style={{ margin: '0 0 12px', color: 'var(--muted)' }}>Pick a goal to start with.</p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                 {goalLibrary.map((item) => (
                   <button
@@ -240,7 +191,7 @@ export function OnboardingWizard({ open, project, onApply, onClose }: Onboarding
                 style={{ background: 'var(--input-bg)' }}
               />
             </label>
-            <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.6 }}>
+              <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.6 }}>
               You can change reminder settings later from Projects or Account.
             </p>
           </div>
@@ -263,8 +214,6 @@ export function OnboardingWizard({ open, project, onApply, onClose }: Onboarding
             )}
           </div>
         </div>
-      </div>
-    </div>,
-    document.body,
+    </Dialog>
   );
 }
